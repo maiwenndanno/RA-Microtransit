@@ -15,7 +15,6 @@ function create_params(tsnetwork,physicalarcs,shortest_time,hubs_ind, model_inpu
             N_vo=N_vo, N_vd=N_vd, N_except_vo_vd_H=N_except_vo_vd_H, 
             P_T=P_T, A=A, Ai=Ai, notAi= notAi, Ai_plus=Ai_plus, Ai_minus=Ai_minus, Ia=Ia,
             A_tilde_depot=A_tilde_depot, N=N, N_depot=N_depot, N_star=N_star,gamma=gamma)
-            # ALORS
 end
 
 #-----------------------------------------------------------------------------------#
