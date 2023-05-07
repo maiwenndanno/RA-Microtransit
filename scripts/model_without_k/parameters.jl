@@ -1,7 +1,7 @@
 include("shortestpath.jl")
 
 function create_params(tsnetwork,physicalarcs,shortest_time,hubs_ind, model_inputs, wo, wd,I,t,tstep,horizon)
-    G,Gtype,Wk,nb_veh,Q,depot_locs=model_inputs
+    G,Gtype,Wk,Q,depot_locs=model_inputs
     vo, vd = create_vo_vd(wo, wd, Wk, I);
     gamma = create_gamma(I,vo,vd,wo,wd,shortest_time,horizon);
     N, N_depot, N_star = create_Ns(tsnetwork.nodeid, tsnetwork.nodedesc, depot_locs, nb_locs);

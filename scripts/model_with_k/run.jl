@@ -10,9 +10,9 @@ function load_data(datafolder,vbs_ind,nb_locs,cust_ind,nb_cust)
     cust=cust[findall(in(cust_ind),cust.cust_id),:]
     cust.cust_id=1:nb_cust
     vbs = CSV.read(datafolder*"locations.csv", DataFrame)
-    locs=vbs[findall(in(vbs_ind),vbs.loc_id),:]
-    locs=vcat(locs,vbs[vbs.loc_id .== 999,:]) # Add sink node
-    locs.loc_id=1:nb_locs+1 # Change sink node id
+    locs=vbs[findall(in(vbs_ind),vbs.id),:]
+    locs.id=1:nb_locs
+    locs=vcat(locs,DataFrame(id = nb_locs+1, x = 0, y = 0)) # Add sink node
     arcs= gen_arcs(locs)
     wo= gen_wo(cust, locs)
     wd= gen_wd(cust, locs)
@@ -21,11 +21,11 @@ end
 
 function gen_arcs(locations)
     arcs = DataFrame(start_loc = Int64[], end_loc = Int64[], duration = Float64[], distance = Float64[])
-    for start_loc in locations.loc_id
-        for end_loc in locations.loc_id
+    for start_loc in locations.id
+        for end_loc in locations.id
             if start_loc != end_loc && start_loc <= nb_locs # not coming from sink node
                 if end_loc <= nb_locs # not going to sink node
-                    dist=((locations[locations.loc_id .== start_loc,:].x[1]-locations[locations.loc_id .== end_loc,:].x[1])^2+(locations[locations.loc_id .== start_loc,:].y[1]-locations[locations.loc_id .== end_loc,:].y[1])^2)^0.5
+                    dist=((locations[locations.id .== start_loc,:].x[1]-locations[locations.id .== end_loc,:].x[1])^2+(locations[locations.id .== start_loc,:].y[1]-locations[locations.id .== end_loc,:].y[1])^2)^0.5
                     time=dist*dr_speed # en minutes
                     push!(arcs, [start_loc, end_loc, time, dist])
                 else # arc to sink node
@@ -45,7 +45,7 @@ function gen_wo(cust, locations)
     for i in 1:size(cust)[1]
         for j in 1:size(locations)[1]-1 # We remove the sink node
             walking_dist_origin=((cust[i,:].x_o-locations[j,:].x)^2+(cust[i,:].y_o-locations[j,:].y)^2)^0.5
-            walking_time_origin[i,locations[j,:].loc_id]=walking_dist_origin*wk_speed
+            walking_time_origin[i,locations[j,:].id]=walking_dist_origin*wk_speed
         end
     end
     return walking_time_origin
@@ -56,7 +56,7 @@ function gen_wd(cust, locations)
     for i in 1:size(cust)[1]
         for j in 1:size(locations)[1]-1 # We remove the sink node
             walking_dist_dest=((cust[i,:].x_d-locations[j,:].x)^2+(cust[i,:].y_d-locations[j,:].y)^2)^0.5
-            walking_time_dest[i,locations[j,:].loc_id]=walking_dist_dest*wk_speed
+            walking_time_dest[i,locations[j,:].id]=walking_dist_dest*wk_speed
         end
     end
     return walking_time_dest

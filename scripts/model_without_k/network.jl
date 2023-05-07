@@ -5,7 +5,7 @@ function createtimespacenodes(nb_locs, horizon, tstep)
 
 	index = 1
 	for t in 0:tstep:horizon
-		for l in 1:nb_locs+1 # Add sink node
+		for l in 1:nb_locs+1 
 			nodeid[(l,t)] = index
 			nodedesc[index] = (l,t)
 			index += 1

@@ -8,17 +8,17 @@ wk_speed = 12 # nb of minutes per km when walking;
     
 # LOCATIONS
 # ------------------ BASIC CASE: 7 VBS + 1 DEPOT
-def gen_loc_basic(loc_file_path,sink):
+def gen_loc_basic(loc_file_path):
     # hubs at index 4,5,6
-    locations = pd.DataFrame([[1,0,0],[2,1,3],[3,1,1],[4,5,3],[5,5,2],[6,5,1],[7,9,3],[8,9,1]], columns = ['loc_id', 'x', 'y'])
-    # Add sink node at the end (index 999)
-    locations=pd.concat([locations,pd.DataFrame([[sink,0,0]], columns = ['loc_id', 'x', 'y'])], ignore_index = True)
+    locations = pd.DataFrame([[1,0,0],[2,1,3],[3,1,1],[4,5,3],[5,5,2],[6,5,1],[7,9,3],[8,9,1]], columns = ['id', 'x', 'y'])
+    # Add "sink" node at the end (index 999)
+    # locations=pd.concat([locations,pd.DataFrame([["sink",0,0]], columns = ['id', 'x', 'y'])], ignore_index = True)
     
     locations.to_csv(loc_file_path,index=False)
     return locations
         
 # ------------------ VBS CASE 1 : 10 VBS incl 2 HUBS + 1 DEPOT
-def gen_loc_uniform_10(loc_file_path,sink):
+def gen_loc_uniform_10(loc_file_path):
     # hubs at index 6,7
     locations = pd.DataFrame([[1,3,-1],
                               [2,1,1],
@@ -30,15 +30,15 @@ def gen_loc_uniform_10(loc_file_path,sink):
                               [8,7,3],
                               [9,7,7], 
                               [10,9,1],
-                              [11,9,5]], columns = ['loc_id', 'x', 'y'])
+                              [11,9,5]], columns = ['id', 'x', 'y'])
     # Add sink node at the end (index 999)
-    locations=pd.concat([locations,pd.DataFrame([[sink,0,0]], columns = ['loc_id', 'x', 'y'])], ignore_index = True)
+    #locations=pd.concat([locations,pd.DataFrame([["sink",0,0]], columns = ['id', 'x', 'y'])], ignore_index = True)
 
     locations.to_csv(loc_file_path,index=False)
     return locations   
 
 # ------------------ VBS CASE 2 : 20 VBS incl 4 HUBS + 1 DEPOT
-def gen_loc_uniform_20(loc_file_path,sink):
+def gen_loc_uniform_20(loc_file_path):
     # hubs at index 6,7,16,17
     locations = pd.DataFrame([[1,5,0],
                               [2,1,1],
@@ -60,23 +60,23 @@ def gen_loc_uniform_20(loc_file_path,sink):
                               [18,7,1],
                               [19,7,5], 
                               [20,9,3],
-                              [21,9,7]], columns = ['loc_id', 'x', 'y'])
+                              [21,9,7]], columns = ['id', 'x', 'y'])
     # Add sink node at the end (index 999)
-    locations=pd.concat([locations,pd.DataFrame([[sink,0,0]], columns = ['loc_id', 'x', 'y'])], ignore_index = True)
+    #locations=pd.concat([locations,pd.DataFrame([["sink",0,0]], columns = ['id', 'x', 'y'])], ignore_index = True)
     
     locations.to_csv(loc_file_path,index=False)
     return locations   
 
-def gen_loc_uniform_30_BIG(loc_file_path,sink):
+def gen_loc_uniform_30_BIG(loc_file_path):
     vbs_list = []
     for i in range(1,11,1): # from 1 to 10
         for j in range(1,4): # from 1 to 3
             vbs_list.append([3*(i-1)+j,i*100,10*(j-1)+10])
     #hubs at index 5, 14, 26
     #print(vbs_list)
-    locations = pd.DataFrame(vbs_list, columns = ['loc_id', 'x', 'y'])
+    locations = pd.DataFrame(vbs_list, columns = ['id', 'x', 'y'])
     # Add sink node at the end (index 999)
-    locations=pd.concat([locations,pd.DataFrame([[sink,0,0]], columns = ['loc_id', 'x', 'y'])], ignore_index = True)
+    #locations=pd.concat([locations,pd.DataFrame([["sink",0,0]], columns = ['id', 'x', 'y'])], ignore_index = True)
     
     locations.to_csv(loc_file_path,index=False)
     return locations
@@ -233,10 +233,10 @@ def gen_cust_clust_20_BIG(cust_file_path):
 # ARCS
 #def gen_arcs(locations, dr_speed):
 #    arcs = pd.DataFrame(columns = ['start_loc', 'end_loc', 'duration', 'distance'])
-#    for start_loc in locations['loc_id']:
-#        for end_loc in locations['loc_id']:
+#    for start_loc in locations['id']:
+#        for end_loc in locations['id']:
 #            if start_loc != end_loc:
-#                dist=((locations[locations['loc_id']==start_loc]['x'].values[0]-locations[locations['loc_id']==end_loc]['x'].values[0])**2+(locations[locations['loc_id']==start_loc]['y'].values[0]-locations[locations['loc_id']==end_loc]['y'].values[0])**2)**0.5
+#                dist=((locations[locations['id']==start_loc]['x'].values[0]-locations[locations['id']==end_loc]['x'].values[0])**2+(locations[locations['id']==start_loc]['y'].values[0]-locations[locations['id']==end_loc]['y'].values[0])**2)**0.5
 #                time=dist*dr_speed # en minutes
 #                arcs=pd.concat([arcs,pd.DataFrame([[str(start_loc),str(end_loc),time,dist]], columns=['start_loc', 'end_loc', 'duration', 'distance'])], ignore_index = True)
 #    #arcs.to_csv(arc_file_path,index=False)
@@ -244,20 +244,20 @@ def gen_cust_clust_20_BIG(cust_file_path):
 #        
 #def walking_time_origin(cust, locations, wk_speed):
 #    # each cell contains the distance between the customer origin and each location
-#    walking_time_origin = pd.DataFrame(columns = locations['loc_id'])  
+#    walking_time_origin = pd.DataFrame(columns = locations['id'])  
 #    for i in range(len(cust)):
 #        for j in range(len(locations)):
 #            walking_dist_origin=((cust['x_o'][i]-locations['x'][j])**2+(cust['y_o'][i]-locations['y'][j])**2)**0.5
-#            walking_time_origin.loc[i+1,locations['loc_id'][j]]=walking_dist_origin*wk_speed
+#            walking_time_origin.loc[i+1,locations['id'][j]]=walking_dist_origin*wk_speed
 #    #walking_time_origin.to_csv(wo_file_path,index=False, header=False)
 #    return walking_time_origin
     
 #def walking_time_dest(cust,locations,wk_speed):
-#    walking_time_dest = pd.DataFrame(columns = locations['loc_id'])  
+#    walking_time_dest = pd.DataFrame(columns = locations['id'])  
 #    for i in range(len(cust)):
 #        for j in range(len(locations)):
 #            walking_dist_dest=((cust['x_d'][i]-locations['x'][j])**2+(cust['y_d'][i]-locations['y'][j])**2)**0.5
-#            walking_time_dest.loc[i+1,locations['loc_id'][j]]=walking_dist_dest*wk_speed
+#            walking_time_dest.loc[i+1,locations['id'][j]]=walking_dist_dest*wk_speed
 #    #walking_time_dest.to_csv(wd_file_path,index=False, header=False)
 #    return walking_time_dest
     
@@ -270,15 +270,14 @@ def gen_folder(vbs_type, cust_type):
     if not os.path.exists(folder):
         os.makedirs(folder)    
     
-    sink=999 # Index of sink location
     if vbs_type=="vbs_basic":
-        locations=gen_loc_basic(folder+'locations.csv',sink)
+        locations=gen_loc_basic(folder+'locations.csv')
     elif vbs_type=="vbs_U10":
-        locations=gen_loc_uniform_10(folder+'locations.csv',sink)
+        locations=gen_loc_uniform_10(folder+'locations.csv')
     elif vbs_type=="vbs_U20":
-        locations=gen_loc_uniform_20(folder+'locations.csv',sink)
+        locations=gen_loc_uniform_20(folder+'locations.csv')
     elif vbs_type=="vbs_U30_BIG":
-        locations=gen_loc_uniform_30_BIG(folder+'locations.csv',sink)
+        locations=gen_loc_uniform_30_BIG(folder+'locations.csv')
     
     if cust_type=="cust_basic":
         cust=gen_cust_basic(folder+'customers.csv')  

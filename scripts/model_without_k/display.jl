@@ -1,24 +1,29 @@
 include("parameters.jl")
 
-function create_map(vbs, cust, hubs_ind, nb_locs)
+function create_map(locs, cust, locs_id)
     map = Plots.plot()
-    classic_vbs=classic_vbs_id(vbs,nb_locs,hubs_ind)
     colors= ["lightskyblue","lime","magenta","mediumblue","mintcream","mistyrose","moccasin","navy","olive","chocolate4","coral","cornflowerblue","cornsilk4","cyan","darkblue","darkcyan","darkgoldenrod", "deeppink","deepskyblue","dodgerblue","firebrick","forestgreen","fuchsia","gainsboro","goldenrod","gray"]
+    hubs_id=locs_id.hubs
+    classic_vbs_id=locs_id.classic_vbs
 
-    # plot depot 
-    #plot!(map,vbs[[depot_loc],:x], vbs[[depot_loc],:y], seriestype=:scatter, label="bus depot", color="tan4", text= vbs[depot_loc,:loc_id], markersize=4,legend=:outertopright)
     # plot hubs
-    #plot!(map,vbs[hubs_ind,:x], vbs[hubs_ind,:y], seriestype=:scatter, label="hubs", color="blue", text= vbs[hubs_ind,:loc_id], markersize=4,legend=:outertopright)
-    scatter!(vbs[hubs_ind,:x], vbs[hubs_ind,:y],label="hubs", color="red", markersize=4,legend=:outertopright)
+    scatter!(locs[hubs_id,:x], locs[hubs_id,:y],label="hubs", color="red", markersize=4,legend=:outertopright)
     # plot all the other vbs locations
-    scatter!(vbs[classic_vbs,:x], vbs[classic_vbs,:y],label="vbs", color="black", markersize=4,legend=:outertopright)
-    #plot!(map,vbs[classic_vbs,:x], vbs[classic_vbs,:y], seriestype=:scatter, label="classic VBS", color="black", text= vbs[classic_vbs,:loc_id], markersize=4,legend=:outertopright)
-    for i in 1:nb_locs
+    scatter!(locs[classic_vbs_id,:x], locs[classic_vbs_id,:y],label="vbs", color="black", markersize=4,legend=:outertopright)
+    #plot!(map,locs[classic_vbs_id,:x], locs[classic_vbs_id,:y], seriestype=:scatter, label="classic VBS", color="black", text= locs[classic_vbs_id,:loc_id], markersize=4,legend=:outertopright)
+    for i in classic_vbs_id
         annotate!(
-            vbs[i,:x], 
-            vbs[i,:y] + 0.5, 
+            locs[i,:x], 
+            locs[i,:y] + 0.5, 
             Plots.text("$i",8)
         )
+    end
+    for i in hubs_id
+        annotate!(
+                locs[i,:x], 
+                locs[i,:y] + 0.5, 
+                Plots.text("$i",8)
+            )
     end
     # For each customer, plot the origin and destination point in the same color
     scatter!(cust[!,:x_o], cust[!,:y_o], markershape=:star5, color=colors[1:size(cust)[1]], label="Customers origin")#label="Cust $i o",legend=:outertopright
@@ -34,14 +39,6 @@ function plot_obj_time(obj,solvetime,x_values,x_axis)
     plot!(x_values,[obj,solvetime], label=["Obj" "Cost"], xlabel=x_axis,legend=:bottom)
     plot!(title="Objective value and solving time",titlefontsize=10)
     return plt
-end
-
-function classic_vbs_id(vbs,nb_locs,hubs_ind)
-    classic_vbs=vbs[1:nb_locs,:loc_id]
-    for i in hubs_ind
-        classic_vbs=classic_vbs[classic_vbs.!=i]
-    end
-return classic_vbs
 end
 
 function display_KPIs(xi,x,z,tsnetwork,params,I,K,q,wo,t,print_all)
