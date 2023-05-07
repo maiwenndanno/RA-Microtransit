@@ -9,7 +9,7 @@ function network_model_v2(Q,abbrev,wo,tsnetwork,params,coefficients,output=1)
     q, t, I, K=abbrev
     A_plus, A_minus, arccost,nodedesc, arcdesc =tsnetwork.A_plus, tsnetwork.A_minus, tsnetwork.arccost,tsnetwork.nodedesc, tsnetwork.arcdesc;
     P, H, O, D, N_vo, N_vd, N_except_vo_vd_H, P_T= params.P, params.H, params.O, params.D, params.N_vo, params.N_vd, params.N_except_vo_vd_H, params.P_T;
-    A, Ai, Ai_plus, Ai_minus,notAi, Ia, N, N_star, A_tilde_depot=params.A, params.Ai, params.Ai_plus, params.Ai_minus, params.notAi, params.Ia, params.N, params.N_star, params.A_tilde_depot;
+    A, Ai, Ai_plus, Ai_minus, Ia, N, N_star, A_tilde_depot=params.A, params.Ai, params.Ai_plus, params.Ai_minus, params.Ia, params.N, params.N_star, params.A_tilde_depot;
     c=arccost #  duration of the arc
 
     # Create variables
@@ -26,9 +26,6 @@ function network_model_v2(Q,abbrev,wo,tsnetwork,params,coefficients,output=1)
     # linking constraint x - xi
     @constraint(model, [i in I, p in P[i], a in Ai[i], k in K], x[i,a,p,k] <= xi[i,p])
 
-    # Arc reduction
-    #@constraint(model, [i in I, p in P[i], a in notAi[i], k in K], x[i,a,p,k] == 0) # customer can only assigned to arcs of Ai
-    
     # Customer flow balance
     @constraint(model, [i in I, p in P[i], n in N_except_vo_vd_H[i][p],k in K], sum(x[i,a,p,k] for a in Ai_minus[i][n]) == sum(x[i,a,p,k] for a in Ai_plus[i][n]))
     @constraint(model, [i in I, p in P[i], n in H[i][p]], sum(x[i,a,p,k] for a in Ai_minus[i][n], k in K) == sum(x[i,a,p,k] for a in Ai_plus[i][n], k in K))

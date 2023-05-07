@@ -183,7 +183,7 @@ function print_traveling_arcs(z,ts,P,Ia,K,map,vbs,tsnetwork) # display from time
                     else
                         println("\t Time $t: from loc $start_loc to $end_loc")
                     end
-                    if end_loc <=nb_locs # We don't show travel to sink
+                    if !(end_loc in locs_id.sink) # We don't show travel to sink
                     # plot line for physical arc between start_loc and end_loc on plot map
                         plot!(map, [vbs[start_loc,:x], vbs[end_loc,:x]],[vbs[start_loc,:y], vbs[end_loc,:y]], color=colors[k], label="")
                     end
@@ -214,10 +214,11 @@ end
 
 using Luxor, Colors
 
-function timespaceviz_arcs(drawingname,horizon, tstep, tsn, arclist; x_size=1200, y_size=700)
+function timespaceviz_arcs(drawingname,horizon, tstep, tsn, arclist, locs_id,locs_desc; x_size=1200, y_size=1000)
 
 	#Find coordinates for each time-space node
 	nodelist = []
+    nb_locs=length(locs_id.all)
 	x_size_trimmed, y_size_trimmed = x_size*0.9, y_size*0.9
 	k1 = x_size_trimmed/(horizon/tstep + 2) 
 	k2 = y_size_trimmed/(nb_locs + 2)
@@ -289,14 +290,10 @@ function timespaceviz_arcs(drawingname,horizon, tstep, tsn, arclist; x_size=1200
 	fontsize(14)
 
 	#Add location labels
-	for l in 1:nb_locs
+	for l in locs_id.all
 		coord = nodePoints[tsn.nodeid[(l,0.0)]]
-		label("Location $l       ", :W , coord)
+		label(locs_desc[l], :W , coord)
 	end
-
-    #Add Sink label
-    coord = nodePoints[tsn.nodeid[(nb_locs+1,0.0)]]
-    label("Bus Sink", :W , coord)
 
 	#Add time labels
 	for t in 0:tstep*2:horizon
@@ -313,6 +310,7 @@ function timespaceviz_bus(drawingname,horizon, tstep, tsn, arcs_dict; x_size=120
 
 	#Find coordinates for each time-space node
 	nodelist = []
+    nb_locs=length(locs_id.all)
 	x_size_trimmed, y_size_trimmed = x_size*0.9, y_size*0.9
 	k1 = x_size_trimmed/(horizon/tstep + 2) 
 	k2 = y_size_trimmed/(nb_locs + 2)
@@ -386,9 +384,9 @@ function timespaceviz_bus(drawingname,horizon, tstep, tsn, arcs_dict; x_size=120
 	fontsize(14)
 
 	#Add location labels
-	for l in 1:nb_locs
+	for l in locs_id.all
 		coord = nodePoints[tsn.nodeid[(l,0.0)]]
-		label("Location $l       ", :W , coord)
+		label(locs_desc[l], :W , coord)
 	end
 
 	#Add time labels

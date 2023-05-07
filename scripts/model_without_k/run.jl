@@ -12,22 +12,19 @@ function load_data(datafolder,vbs_id,nb_locs,cust_id,nb_cust)
     vbs = CSV.read(datafolder*"locations.csv", DataFrame)
     locs=vbs[findall(in(vbs_id),vbs.id),:]
     locs.id=1:nb_locs # Update loc ids with 1:nb_locs
-    arcs= gen_arcs(locs)
-    wo= gen_wo(cust, locs)
-    wd= gen_wd(cust, locs)
-    return cust, locs, arcs, wo, wd
+    return cust, locs
 end
 
-function gen_arcs(locations)
+function gen_arcs(locs,locs_id)
     arcs = DataFrame(start_loc = Int64[], end_loc = Int64[], duration = Float64[], distance = Float64[])
-    for start_loc in locations.id
-        for end_loc in locations.id
-            if start_loc != end_loc && start_loc <= nb_locs # not coming from sink node
-                if end_loc <= nb_locs # not going to sink node
-                    dist=((locations[locations.id .== start_loc,:].x[1]-locations[locations.id .== end_loc,:].x[1])^2+(locations[locations.id .== start_loc,:].y[1]-locations[locations.id .== end_loc,:].y[1])^2)^0.5
+    for start_loc in locs.id
+        for end_loc in locs.id
+            if start_loc != end_loc && !(start_loc in locs_id.sink) && !(end_loc in locs_id.depots) # no arc coming from sink node or leaving a depot node
+                if !(end_loc in locs_id.sink) && !(start_loc in locs_id.depots) # not going to sink node or coming from a depot node
+                    dist=((locs[locs.id .== start_loc,:].x[1]-locs[locs.id .== end_loc,:].x[1])^2+(locs[locs.id .== start_loc,:].y[1]-locs[locs.id .== end_loc,:].y[1])^2)^0.5
                     time=dist*dr_speed # en minutes
                     push!(arcs, [start_loc, end_loc, time, dist])
-                else # arc to sink node
+                else # arc to sink node or from depot
                     dist=0
                     time=0
                     push!(arcs, [start_loc, end_loc, time, dist])
@@ -38,24 +35,34 @@ function gen_arcs(locations)
     return arcs
 end
 
-function gen_wo(cust, locations)
-    # create empty matrix of size (nb of customers, nb of vbs)
-    walking_time_origin = zeros(size(cust)[1],size(locations)[1]-1)
+function gen_wo(cust, locs, locs_id)
+    vbs_ids=locs_id.all_vbs #classic vbs + dupl hubs
+    # create empty matrix of size (nb of customers, nb of locs)
+    walking_time_origin = zeros(size(cust)[1],size(locs)[1])
     for i in 1:size(cust)[1]
-        for j in 1:size(locations)[1]-1 # We remove the sink node
-            walking_dist_origin=((cust[i,:].x_o-locations[j,:].x)^2+(cust[i,:].y_o-locations[j,:].y)^2)^0.5
-            walking_time_origin[i,locations[j,:].id]=walking_dist_origin*wk_speed
+        for j in locs_id.all
+            if j in vbs_ids
+                walking_dist_origin=((cust[i,:].x_o-locs[j,:].x)^2+(cust[i,:].y_o-locs[j,:].y)^2)^0.5
+                walking_time_origin[i,locs[j,:].id]=walking_dist_origin*wk_speed
+            else
+                walking_time_origin[i,locs[j,:].id]=Inf # Depots and sinks are unreachable
+            end
         end
     end
     return walking_time_origin
 end
 
-function gen_wd(cust, locations)
-    walking_time_dest = zeros(size(cust)[1],size(locations)[1]-1)
+function gen_wd(cust, locs, locs_id)
+    vbs_ids=locs_id.all_vbs #classic vbs + dupl hubs
+    walking_time_dest = zeros(size(cust)[1],size(locs)[1])
     for i in 1:size(cust)[1]
-        for j in 1:size(locations)[1]-1 # We remove the sink node
-            walking_dist_dest=((cust[i,:].x_d-locations[j,:].x)^2+(cust[i,:].y_d-locations[j,:].y)^2)^0.5
-            walking_time_dest[i,locations[j,:].id]=walking_dist_dest*wk_speed
+        for j in locs_id.all
+            if j in vbs_ids
+                walking_dist_dest=((cust[i,:].x_d-locs[j,:].x)^2+(cust[i,:].y_d-locs[j,:].y)^2)^0.5
+                walking_time_dest[i,locs[j,:].id]=walking_dist_dest*wk_speed
+            else
+                walking_time_dest[i,locs[j,:].id]=Inf # Depots and sinks are unreachable
+            end
         end
     end
     return walking_time_dest
@@ -107,8 +114,10 @@ function expand_locs(locs,depot_locs,hubs_id)
     
     # Duplicate hubs nodes for nb_veh > 1
     count_h=0
+    similar_hubs=Dict() # Contain all the hubs located at the same locations
     for id in locs.id
         if id in hubs_id
+            similar_hubs[id]=[id]
             # get index of id in hubs_id
             locs_desc[id]=string("Vbs ",id," (Hub)")
             # Create new nodes for each vehicle (nb_veh -1 since we already have one hub)
@@ -119,6 +128,7 @@ function expand_locs(locs,depot_locs,hubs_id)
                 push!(full_hubs_id,id_k)
                 push!(full_vbs_id,id_k)
                 locs_desc[id_k]=string("Vbs ",id," (Hub)")
+                push!(similar_hubs[id],id_k)
             end
             count_h+=1
         else 
@@ -141,22 +151,25 @@ function expand_locs(locs,depot_locs,hubs_id)
     locs_desc[sink_id]="Sink"
 
     # Different locs id
-    locs_id= (all=locs.id, hubs=hubs_id, all_hubs=full_hubs_id, all_vbs=full_vbs_id, classic_vbs=classic_vbs_id, depots=depots_id, sink=sink_id)
+    locs_id= (all=locs.id, hubs=hubs_id, all_hubs=full_hubs_id, all_vbs=full_vbs_id, classic_vbs=classic_vbs_id, depots=depots_id, sink=sink_id, similar_hubs)
     return locs, locs_id, locs_desc
 end
     
 
 function create_network(map_inputs, model_inputs)
-    # map_inputs: datafolder,hubs_id,nb_locs,nb_cust,horizon,tstep
-    # model_inputs: G,Gtype,Wk,nb_veh,Q,depot_locs
+    # map_inputs: datafolder,hubs_id,vbs_id,nb_locs,nb_cust,depot_locs,horizon,tstep
+    # model_inputs: G,Gtype,Wk,Q
 
-    datafolder,hubs_id,vbs_id,nb_locs,cust_id,nb_cust,horizon,tstep = map_inputs
-    G,Gtype,Wk,Q,depot_locs = model_inputs
-
-    cust, locs, arcs, wo, wd = load_data(datafolder,vbs_id,nb_locs,cust_id,nb_cust);
+    datafolder,hubs_id,vbs_id,nb_locs,cust_id,nb_cust,depot_locs,horizon,tstep = map_inputs
+    G,Gtype,Wk,Q = model_inputs
+    cust, locs = load_data(datafolder,vbs_id,nb_locs,cust_id,nb_cust);
     locs, locs_id, locs_desc=expand_locs(locs,depot_locs,hubs_id); # Update locs with depot, hubs and sink
     map = create_map(locs, cust, locs_id)
-    #tsnetwork,physicalarcs = createfullnetwork(locs, arcs, nb_locs, horizon, tstep)
+
+    arcs= gen_arcs(locs, locs_id)
+    wo= gen_wo(cust, locs, locs_id)
+    wd= gen_wd(cust, locs, locs_id)
+    tsnetwork,physicalarcs = createfullnetwork(locs, arcs, horizon, tstep)
 
     # Abbreviations for IO model
     q = cust[!,"load"]; # customer load
@@ -165,9 +178,9 @@ function create_network(map_inputs, model_inputs)
     K = 1:length(depot_locs); # vehicles set
     abbrev=(q,t,I,K)
 
-    #shortest_time=cacheShortestTravelTimes(physicalarcs,nb_locs)
-    #params = create_params(tsnetwork,physicalarcs,shortest_time,hubs_id, model_inputs, wo, wd,I,t,tstep,horizon)
+    shortest_time=cacheShortestTravelTimes(physicalarcs,locs_id)
+    params = create_params(tsnetwork,physicalarcs,shortest_time,locs_id, model_inputs, wo, wd,I,t,tstep,horizon)
     
-    return locs, locs_id, locs_desc, map#, tsnetwork, params, cust, locs, arcs, wo, wd, abbrev, shortest_time
+    return cust, locs, locs_id, locs_desc, map, arcs, wo, wd,tsnetwork,shortest_time,physicalarcs, params, abbrev 
 end
     

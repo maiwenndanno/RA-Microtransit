@@ -1,11 +1,11 @@
 #Create the time-space nodes, returning the number, ids, and descriptions
-function createtimespacenodes(nb_locs, horizon, tstep)
+function createtimespacenodes(locs, horizon, tstep)
 
 	nodeid, nodedesc = Dict(), Dict()
 
 	index = 1
 	for t in 0:tstep:horizon
-		for l in 1:nb_locs+1 
+		for l in locs.id
 			nodeid[(l,t)] = index
 			nodedesc[index] = (l,t)
 			index += 1
@@ -21,7 +21,7 @@ end
 
 #-----------------------------------------------------------------------------------#
 
-#Read the list of arcs from the arc file (including arcs to sink)
+#Read the list of arcs from the arc file
 function getphysicalarcs(arcs, tstep)
 	
 	physicalarcs = []
@@ -51,7 +51,7 @@ function createtimespacearcs(physicalarcs, nb_locs, numnodes, nodeid)
 	end
 
 	stationaryarcs = []
-	for l in 1:nb_locs+1 # Add sink node
+	for l in 1:nb_locs
 		push!(stationaryarcs, (l, l, 0, tstep, tstep))
 	end
 
@@ -83,16 +83,16 @@ end
 #-----------------------------------------------------------------------------------#
 
 #Build the full time-space network
-function createfullnetwork(locations, arcs, nb_locs, horizon, tstep)
+function createfullnetwork(locs, arcs, horizon, tstep)
 
 	#Build network
-	loccoords = hcat(locations[:,2], locations[:,3])
-	numnodes, nodeid, nodedesc, times = createtimespacenodes(nb_locs, horizon, tstep)
+	#loccoords = hcat(locs[:,2], locs[:,3])
+	numnodes, nodeid, nodedesc, times = createtimespacenodes(locs, horizon, tstep)
 	physicalarcs = getphysicalarcs(arcs, tstep)
-	numarcs, arcid, arcdesc, A_plus, A_minus, arccost,dist = createtimespacearcs(physicalarcs, nb_locs, numnodes, nodeid)
+	numarcs, arcid, arcdesc, A_plus, A_minus, arccost,dist = createtimespacearcs(physicalarcs, size(locs)[1], numnodes, nodeid)
 
 	#Create a NamedTuple with all the useful network data/parameters
-	tsnetwork = (loccoords=loccoords, numnodes=numnodes, nodeid=nodeid, nodedesc=nodedesc, times=times, numarcs=numarcs, arcid=arcid, arcdesc=arcdesc, A_plus=A_plus, A_minus=A_minus, arccost=arccost,dist=dist)
+	tsnetwork = (numnodes=numnodes, nodeid=nodeid, nodedesc=nodedesc, times=times, numarcs=numarcs, arcid=arcid, arcdesc=arcdesc, A_plus=A_plus, A_minus=A_minus, arccost=arccost,dist=dist)
 
 	return tsnetwork,physicalarcs
 

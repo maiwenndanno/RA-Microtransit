@@ -1,39 +1,40 @@
 include("shortestpath.jl")
 
-function create_params(tsnetwork,physicalarcs,shortest_time,hubs_ind, model_inputs, wo, wd,I,t,tstep,horizon)
-    G,Gtype,Wk,Q,depot_locs=model_inputs
+function create_params(tsnetwork,physicalarcs,shortest_time,locs_id, model_inputs, wo, wd,I,t,tstep,horizon)
+    G,Gtype,Wk,Q=model_inputs
     vo, vd = create_vo_vd(wo, wd, Wk, I);
     gamma = create_gamma(I,vo,vd,wo,wd,shortest_time,horizon);
-    N, N_depot, N_star = create_Ns(tsnetwork.nodeid, tsnetwork.nodedesc, depot_locs, nb_locs);
-    A, A_tilde_depot,Ai,notAi, deadlines = create_As(tsnetwork, physicalarcs, N_depot, shortest_time, gamma, I, Wk, vo, vd, wo,wd, t, G, Gtype,tstep,horizon)
+    N, N_depot, N_star = create_Ns(tsnetwork.nodeid, tsnetwork.nodedesc, locs_id);
+    A, A_tilde_depot,Ai, deadlines = create_As(tsnetwork, physicalarcs, locs_id, N_depot, shortest_time, gamma, I, vo, vd, wo,wd, t, G, Gtype,tstep,horizon)
     Ai_plus,Ai_minus=create_Aplus_minus_i(tsnetwork,I,Ai,N);
     Ia=create_Ia(I,A,Ai);
-    P,P_T = create_paths(vo,vd,I,hubs_ind,wo,wd);
-    O, D, H = create_OHD_sets(N,I,P,t,gamma,tsnetwork.nodedesc,tstep,wo, wd,deadlines,shortest_time);
+    P,P_T = create_paths(vo,vd,I,locs_id,wo,wd);
+    O, D, H, H_time = create_OHD_sets(N,I,P,t,gamma,tsnetwork.nodedesc,tstep,wo, wd,deadlines,shortest_time, horizon);
+    Ai_except_H=create_Ai_except_H(Ai,I,P,tsnetwork);
     N_vo, N_vd, N_except_vo_vd_H=create_N_vo_vd_H(N,vo,vd,I,P, H,tsnetwork.nodedesc);
-    return (vo=vo, vd=vd, P=P, H=H, O=O, D=D, deadlines=deadlines,
+    return (vo=vo, vd=vd, P=P, H=H, H_time=H_time, O=O, D=D, deadlines=deadlines,
             N_vo=N_vo, N_vd=N_vd, N_except_vo_vd_H=N_except_vo_vd_H, 
-            P_T=P_T, A=A, Ai=Ai, notAi= notAi, Ai_plus=Ai_plus, Ai_minus=Ai_minus, Ia=Ia,
+            P_T=P_T, A=A, Ai=Ai, Ai_plus=Ai_plus, Ai_minus=Ai_minus, Ia=Ia, Ai_except_H=Ai_except_H,
             A_tilde_depot=A_tilde_depot, N=N, N_depot=N_depot, N_star=N_star,gamma=gamma)
 end
 
 #-----------------------------------------------------------------------------------#
-function create_Ns(nodeid,nodedesc, depot_locs,nb_locs)
+function create_Ns(nodeid,nodedesc, locs_id)
 
     N=collect(values(nodeid)) # set of time-space nodes indices
 
     N_depot=Dict()
-    N_star=Dict() # set of time-space nodes indices excluding the sink and the depot locs
-    K=length(depot_locs)
-    for k in 1:K
+    for k in locs_id.depots # depot indices
         N_depot[k]=Vector()
-        N_star[k]=Vector()
-        for n in N
-            if nodedesc[n][1]==depot_locs[k]
-                push!(N_depot[k], n)
-            elseif nodedesc[n][1]!=nb_locs+1 # if not at sink location
-                push!(N_star[k], n)
-            end
+    end
+
+    N_star=Vector() # set of time-space nodes indices excluding the sink and the depot locs
+
+    for n in N
+        if nodedesc[n][1] in locs_id.depots # if at depot location
+            push!(N_depot[nodedesc[n][1]], n)
+        elseif !(nodedesc[n][1] in locs_id.sink) # if not at sink location
+            push!(N_star, n)
         end
     end
     return N, N_depot, N_star
@@ -66,25 +67,25 @@ function create_Aplus_minus_i(tsn,I,Ai,N)
 end
 #-----------------------------------------------------------------------------------#
 
-function create_As(tsn, physicalarcs, N_depot, shortest_time, gamma, I, Wk, vo, vd, wo, wd, t, G, Gtype,tstep,horizon)
+function create_As(tsn, physicalarcs, locs_id, N_depot, shortest_time, gamma, I, vo, vd, wo, wd, t, G, Gtype,tstep,horizon)
 
     A=collect(values(tsn.arcid))
-    veh=collect(keys(N_depot))
+    depots=collect(keys(N_depot))
 
-    # Only the traveling arcs from the depot
+    # Only the traveling arcs from the depot d
     A_tilde_depot=Dict()
-    for k in veh
-        A_tilde_depot[k]=Vector()
+    for d in depots
+        A_tilde_depot[d]=Vector()
         for a in A
-            if tsn.arcdesc[a][1] in N_depot[k] && !(tsn.arcdesc[a][2] in N_depot[k])
-                push!(A_tilde_depot[k], a)
+            if tsn.arcdesc[a][1] in N_depot[d] && !(tsn.arcdesc[a][2] in N_depot[d])
+                push!(A_tilde_depot[d], a)
             end
         end
     end
 
     # Reduce the number of arcs for each customer with heuristic
-    Ai,notAi,deadlines=reduce_arcs(tsn, physicalarcs, G, Gtype, vo, vd, wo, wd, t,shortest_time, gamma,Wk,I,tstep,horizon)
-    return A,A_tilde_depot,Ai,notAi, deadlines
+    Ai,deadlines=reduce_arcs(tsn, physicalarcs, locs_id, G, Gtype, vo, vd, wo, wd, t,shortest_time, gamma,I,tstep,horizon)
+    return A,A_tilde_depot,Ai, deadlines
 end
 
 #---------------------------------------------------------------------------------------#
@@ -101,7 +102,7 @@ function create_Ia(I,A,Ai)
     return Ia
 end
 #---------------------------------------------------------------------------------------#
-function reduce_arcs(tsn, physicalarcs, G, Gtype, vo, vd, wo,wd, t, shortest_time,gamma,Wk,I,tstep,horizon)
+function reduce_arcs(tsn, physicalarcs, locs_id, G, Gtype, vo, vd, wo,wd, t, shortest_time,gamma,I,tstep,horizon)
     Ai=Dict()
     notAi=Dict() # = A minus A[i]
 
@@ -121,14 +122,15 @@ function reduce_arcs(tsn, physicalarcs, G, Gtype, vo, vd, wo,wd, t, shortest_tim
         end
 
         #Create stationary arcs
+        vbs_locs=locs_id.all  # all locations where passengers can travel (no depot or sink)
         stationaryarcs = []
-        for l in 1:nb_locs
+        for l in vbs_locs
             push!(stationaryarcs, (l, l, 0, tstep, tstep))
         end
         
         for arc in union(physicalarcs, stationaryarcs)
             loc1, loc2, loc1loc2_traveltime = arc[1], arc[2], arc[5]
-            if loc2 <= nb_locs # we don't consider arcs to sink for customers
+            if !(loc2 in locs_id.sink) && !(loc1 in locs_id.depots) # No arc from depot or to sink
                 if !(loc1 in vd[i])
                     t1 = tstep * ceil(minimum([wo[i,o]+shortest_time[o, loc1] for o in vo[i]])/tstep) # shortest time for cust to reach loc 1 from origin
                     t2 = loc1loc2_traveltime # shortest driving time from loc 1 to loc 2
@@ -145,16 +147,11 @@ function reduce_arcs(tsn, physicalarcs, G, Gtype, vo, vd, wo,wd, t, shortest_tim
                             push!(notAi[i], new)
                         end
                     end
-                else
-                    for start in 0:tstep:horizon-arc[5]
-                        new=tsn.arcid[tsn.nodeid[loc1, start], tsn.nodeid[loc2, start + arc[5]]]
-                        push!(notAi[i], new)
-                    end
                 end
             end
         end
     end
-	return Ai,notAi,deadlines
+	return Ai,deadlines
 end
 
 #-----------------------------------------------------------------------------------#
@@ -177,7 +174,8 @@ end
 
 #-----------------------------------------------------------------------------------#
 
-function create_paths(vo,vd,I,hubs_ind,wo,wd)
+function create_paths(vo,vd,I,locs_id,wo,wd)
+    hubs_ind=locs_id.hubs # not duplicated
     P=Dict() # dictionnaire of paths of all customers
     P_T=Dict()  # dictionnaire of indirect paths of all customers 
     for i in I
@@ -189,7 +187,7 @@ function create_paths(vo,vd,I,hubs_ind,wo,wd)
                     direct_path=Dict("o"=>o,"d"=>d,"transfer"=>0,"walking"=>round(wo[i,o]+wd[i,d],digits=2)) 
                     push!(P[i], direct_path)
                     for h in hubs_ind
-                        transfer_path=Dict("o"=>o,"d"=>d,"h"=>h,"transfer"=>1,"walking"=> round(wo[i,o]+wd[i,d],digits=2))
+                        transfer_path=Dict("o"=>o,"d"=>d,"h"=>locs_id.similar_hubs[h],"transfer"=>1,"walking"=> round(wo[i,o]+wd[i,d],digits=2))
                         push!(P[i], transfer_path)
                         push!(P_T[i], transfer_path)
                     end
@@ -238,19 +236,22 @@ end
 
 #-----------------------------------------------------------------------------------#
 
-function create_OHD_sets(N,I,P,t,gamma,nodedesc,tstep,wo, wd,deadlines, shortest_time)
+function create_OHD_sets(N,I,P,t,gamma,nodedesc,tstep,wo, wd,deadlines, shortest_time, horizon)
     # Wk: max malking time
     # Wt: max waiting time at pick-up
     # G: Detour ratio for driving time
     O=Dict() # dictionnaire of pick-up nodes indices for each customer and each path
     D=Dict() # dictionnaire of drop-off nodes indices for each customer and each path
     H=Dict() # dictionnaire of transfer nodes indices for each customer and each path
-
+    H_time=Dict() # dictionnaire of transfer nodes indices for each customer and each path at time t
     for i in I
-        O[i], D[i], H[i]=Dict(), Dict(), Dict()
+        O[i], D[i], H[i], H_time[i]=Dict(), Dict(), Dict(), Dict()
 
         for p in P[i]
-            O_ip, D_ip, H_ip=Vector(), Vector(), Vector()
+            O_ip, D_ip, H_ip, H_time_ip=Vector(), Vector(), Vector(), Dict()
+            for t in 0:tstep:horizon
+                H_time_ip[t]=Vector()
+            end
             for n in N
                 node=nodedesc[n]
                 if node[1] in p["o"] && (node[2]<=deadlines[i]-(gamma[i]["best_full"]-wo[i,node[1]])) && (node[2]>=t[i]+wo[i,node[1]])
@@ -263,6 +264,7 @@ function create_OHD_sets(N,I,P,t,gamma,nodedesc,tstep,wo, wd,deadlines, shortest
                     if p["transfer"]==1 # if transfer
                         if node[1] in p["h"] 
                             push!(H_ip, n)
+                            push!(H_time_ip[node[2]], n)
                         end
                     end
                 end
@@ -270,10 +272,10 @@ function create_OHD_sets(N,I,P,t,gamma,nodedesc,tstep,wo, wd,deadlines, shortest
             O[i][p]=O_ip
             D[i][p]=D_ip
             H[i][p]=H_ip
-
+            H_time[i][p]=H_time_ip
         end
     end
-    return O, D, H
+    return O, D, H, H_time
 end
 
 #-----------------------------------------------------------------------------------#
@@ -305,6 +307,32 @@ function create_N_vo_vd_H(N,vo,vd,I,P, H_ind,nodedesc)
 end
 
 # -----------------------------------------------------------------------------------#
+function create_Ai_except_H(Ai,I,P,tsnetwork)
+    # Remove from Ai any arcs that is stationnary at a hub location of the select path p
+    Ai_except_H=Dict()
+    for i in I
+        Ai_except_H[i]=Dict()
+        for p in P[i]
+            if p["transfer"]==0
+                Ai_except_H[i][p]=Ai[i] # We do not remove any arcs
+            else 
+                hubs=p["h"]
+                Ai_except_H[i][p]=Vector()
+                for a in Ai[i]
+                    n_start=tsnetwork.arcdesc[a][1]
+                    n_end=tsnetwork.arcdesc[a][2]
+                    if !(getL(n_start,tsnetwork) in hubs) || (getL(n_start,tsnetwork)!=getL(n_end,tsnetwork)) 
+                        # We keep the arcs that are not stationnary at a hub location
+                        push!(Ai_except_H[i][p], a)
+                    end
+                end
+            end
+        end
+    end
+    return Ai_except_H
+end
+
+# -----------------------------------------------------------------------------------#
 # Return the start time of an arc (index type)
 function getT(a,tsnetwork)
 	return tsnetwork.nodedesc[tsnetwork.arcdesc[a][1]][2]
@@ -321,17 +349,4 @@ function get_wo(i,node,tsnetwork,wo)
     return wo[i,getL(node,tsnetwork)]
 end
 
-# -----------------------------------------------------------------------------------#
-# Return the arcs that are stationary at a hub location
-#function getA_H_noH(A,hubs_ind)
-#    A_H=Vector()
-#    A_noH=Vector()
-#    for a in A
-#        if getL(arcdesc[a][1])==getL(arcdesc[a][2]) && getL(arcdesc[a][1]) in hubs_ind
-#            push!(A_H, a)
-#        else
-#            push!(A_noH, a)
-#        end
-#    end
-#    return A_H, A_noH
-#end
+
