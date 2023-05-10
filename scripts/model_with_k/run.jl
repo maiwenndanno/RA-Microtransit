@@ -13,13 +13,13 @@ function load_data(datafolder,vbs_ind,nb_locs,cust_ind,nb_cust)
     locs=vbs[findall(in(vbs_ind),vbs.id),:]
     locs.id=1:nb_locs
     locs=vcat(locs,DataFrame(id = nb_locs+1, x = 0, y = 0)) # Add sink node
-    arcs= gen_arcs(locs)
+    arcs= gen_arcs(locs,nb_locs)
     wo= gen_wo(cust, locs)
     wd= gen_wd(cust, locs)
     return cust, locs, arcs, wo, wd
 end
 
-function gen_arcs(locations)
+function gen_arcs(locations,nb_locs)
     arcs = DataFrame(start_loc = Int64[], end_loc = Int64[], duration = Float64[], distance = Float64[])
     for start_loc in locations.id
         for end_loc in locations.id
@@ -78,27 +78,28 @@ function update_locs_ind(hubs_ind, vbs_ind,nb_locs)
 end
 
 function create_network(map_inputs, model_inputs)
-    # map_inputs: datafolder,hubs_ind,nb_locs,nb_cust,horizon,tstep
-    # model_inputs: G,Gtype,Wk,nb_veh,Q,depot_locs
+    # map_inputs: datafolder,hubs_ind,nb_locs,nb_cust,depot_locs,horizon,tstep
+    # model_inputs: G,Gtype,Wk,Q
 
-    datafolder,hubs_ind,vbs_ind,nb_locs,cust_ind,nb_cust,horizon,tstep = map_inputs
-    G,Gtype,Wk,nb_veh,Q,depot_locs = model_inputs
+    map_title,hubs_ind,vbs_ind,nb_locs,cust_ind,nb_cust,depot_locs,horizon,tstep = map_inputs
+    G,Gtype,Wk,Q = model_inputs
+
+    datafolder="../../data/"*map_title*"/";
     cust, vbs, arcs, wo, wd = load_data(datafolder,vbs_ind,nb_locs,cust_ind,nb_cust);
-
     hubs_ind = update_locs_ind(hubs_ind, vbs_ind,nb_locs) #hubs_ind[hubs_ind .<= nb_locs]
-    map = create_map(vbs, cust, hubs_ind,nb_locs)
-    tsnetwork,physicalarcs = createfullnetwork(vbs, arcs, nb_locs, horizon, tstep)
-
+    map1 = create_map(vbs, cust, hubs_ind,nb_locs)
+    
     # Abbreviations for IO model
     q = cust[!,"load"]; # customer load
     t = cust[!,"depart_time"]; # customer departure time
     I = 1:size(cust)[1]; # customers set
-    K = 1:nb_veh; # vehicles set
+    K = 1:length(depot_locs); # vehicles set
     abbrev=(q,t,I,K)
 
-    shortest_time=cacheShortestTravelTimes(physicalarcs,nb_locs)
-    params = create_params(tsnetwork,physicalarcs,shortest_time,hubs_ind, model_inputs, wo, wd,I,t,tstep,horizon)
+    tsnetwork = createfullnetwork(vbs, arcs, nb_locs, horizon, tstep)
+    params = create_params(tsnetwork,hubs_ind, model_inputs, nb_locs,depot_locs,wo, wd,I,t,tstep,horizon)
+    data=(cust=cust,locs=vbs,arcs=arcs,wo=wo,wd=wd)
     
-    return map, tsnetwork, params, cust, vbs, arcs, wo, wd, abbrev, shortest_time
+    return data, map1, tsnetwork, params, abbrev
 end
     

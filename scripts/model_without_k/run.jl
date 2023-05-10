@@ -3,7 +3,6 @@ using JLD2, FileIO
 include("network.jl")
 include("parameters.jl")
 include("display.jl")
-include("model.jl");
 
 function load_data(datafolder,vbs_id,nb_locs,cust_id,nb_cust)
     cust = CSV.read(datafolder*"customers.csv", DataFrame)
@@ -19,12 +18,14 @@ function gen_arcs(locs,locs_id)
     arcs = DataFrame(start_loc = Int64[], end_loc = Int64[], duration = Float64[], distance = Float64[])
     for start_loc in locs.id
         for end_loc in locs.id
-            if start_loc != end_loc && !(start_loc in locs_id.sink) && !(end_loc in locs_id.depots) # no arc coming from sink node or leaving a depot node
-                if !(end_loc in locs_id.sink) && !(start_loc in locs_id.depots) # not going to sink node or coming from a depot node
+            if start_loc != end_loc && !(start_loc in locs_id.sink) && !similar(start_loc,end_loc, locs_id) && !(end_loc in locs_id.depots) # no arc coming from sink node and no arc between two duplicated hub locations
+                # NB: C'est ici que j'empêche les arcs verticaux aux hubs
+                if !(end_loc in locs_id.sink)  # not going to sink node 
+                    # && 
                     dist=((locs[locs.id .== start_loc,:].x[1]-locs[locs.id .== end_loc,:].x[1])^2+(locs[locs.id .== start_loc,:].y[1]-locs[locs.id .== end_loc,:].y[1])^2)^0.5
                     time=dist*dr_speed # en minutes
                     push!(arcs, [start_loc, end_loc, time, dist])
-                else # arc to sink node or from depot
+                elseif !(start_loc in locs_id.depots) # arc to sink node but not from depot node
                     dist=0
                     time=0
                     push!(arcs, [start_loc, end_loc, time, dist])
@@ -33,6 +34,17 @@ function gen_arcs(locs,locs_id)
         end
     end
     return arcs
+end
+
+function similar(start_loc,end_loc,locs_id)
+    # Return true if start_loc and end_loc are similar hubs
+    res=false
+    for hub in keys(locs_id.similar_hubs)
+        if start_loc in locs_id.similar_hubs[hub] && end_loc in locs_id.similar_hubs[hub]
+            res=true
+        end
+    end
+    return res
 end
 
 function gen_wo(cust, locs, locs_id)
@@ -83,7 +95,7 @@ function update_hubs_id(hubs_id, vbs_id)
     return new_hubs_id
 end
 
-function expand_locs(locs,depot_locs,hubs_id)
+function expand_locs(locs,vbs_id,depot_locs,hubs_id,park_slots)
     # Expand locs and create the different locs_id parameters & locs_desc dictionnary
     # all: indices of all the locs (including hubs, depots, sink)
     # classic_vbs: indices of the classic vbs Only
@@ -112,7 +124,7 @@ function expand_locs(locs,depot_locs,hubs_id)
     # Initialize correspondance between loc id and visuals
     locs_desc=Dict() # Dictionnary that will contain the description of each location ("Sink", "Depot (in 14)", "Vbs 13 (Hub)")
     
-    # Duplicate hubs nodes for nb_veh > 1
+    # Duplicate hubs nodes for park_slots > 1
     count_h=0
     similar_hubs=Dict() # Contain all the hubs located at the same locations
     for id in locs.id
@@ -120,9 +132,9 @@ function expand_locs(locs,depot_locs,hubs_id)
             similar_hubs[id]=[id]
             # get index of id in hubs_id
             locs_desc[id]=string("Vbs ",id," (Hub)")
-            # Create new nodes for each vehicle (nb_veh -1 since we already have one hub)
-            for k in 1:nb_veh-1
-                id_k=nb_locs+count_h*(nb_veh-1)+k
+            # Create new nodes for each vehicle (park_slots -1 since we already have one hub)
+            for k in 1:park_slots-1
+                id_k=nb_locs+count_h*(park_slots-1)+k
                 locs=vcat(locs,DataFrame(id = id_k,x=locs[locs.id .==id,:x] , y = locs[locs.id .==id,:y]))
                 # Add new indices of hubs
                 push!(full_hubs_id,id_k)
@@ -141,7 +153,7 @@ function expand_locs(locs,depot_locs,hubs_id)
     for i in eachindex(depot_locs)
         id=size(locs)[1]+1
         locs=vcat(locs,DataFrame(id = id,x=locs[locs.id .==depot_locs[i],:x] , y = locs[locs.id .==depot_locs[i],:y]))
-        locs_desc[id]=string("Depot (Vbs ",depot_locs[i],")")
+        locs_desc[id]=string("Vbs ",depot_locs[i]," (Depot)")
         push!(depots_id,id)
     end
  
@@ -156,20 +168,22 @@ function expand_locs(locs,depot_locs,hubs_id)
 end
     
 
-function create_network(map_inputs, model_inputs)
+function create_network(map_inputs, model_inputs,benchmark,park_slots)
     # map_inputs: datafolder,hubs_id,vbs_id,nb_locs,nb_cust,depot_locs,horizon,tstep
     # model_inputs: G,Gtype,Wk,Q
 
-    datafolder,hubs_id,vbs_id,nb_locs,cust_id,nb_cust,depot_locs,horizon,tstep = map_inputs
+    map_title,hubs_id,vbs_id,nb_locs,cust_id,nb_cust,depot_locs,horizon,tstep = map_inputs
     G,Gtype,Wk,Q = model_inputs
-    cust, locs = load_data(datafolder,vbs_id,nb_locs,cust_id,nb_cust);
-    locs, locs_id, locs_desc=expand_locs(locs,depot_locs,hubs_id); # Update locs with depot, hubs and sink
+    park_slots=min(park_slots,length(depot_locs)) # If park_slots > nb_vehs, park_slots=nb_vehs
+
+    datafolder="data/"*map_title*"/";
+    cust, locs = load_data(datafolder,vbs_id,nb_locs,cust_id,nb_cust)
+    locs, locs_id, locs_desc=expand_locs(locs,vbs_id,depot_locs,hubs_id,park_slots); # Update locs with depot, hubs and sink
     map = create_map(locs, cust, locs_id)
 
     arcs= gen_arcs(locs, locs_id)
     wo= gen_wo(cust, locs, locs_id)
     wd= gen_wd(cust, locs, locs_id)
-    tsnetwork,physicalarcs = createfullnetwork(locs, arcs, horizon, tstep)
 
     # Abbreviations for IO model
     q = cust[!,"load"]; # customer load
@@ -178,9 +192,10 @@ function create_network(map_inputs, model_inputs)
     K = 1:length(depot_locs); # vehicles set
     abbrev=(q,t,I,K)
 
-    shortest_time=cacheShortestTravelTimes(physicalarcs,locs_id)
-    params = create_params(tsnetwork,physicalarcs,shortest_time,locs_id, model_inputs, wo, wd,I,t,tstep,horizon)
+    tsnetwork = createfullnetwork(locs, arcs, horizon, tstep)
+    params = create_params(tsnetwork,locs_id, model_inputs, wo, wd,I,t,tstep,horizon,benchmark)
     
-    return cust, locs, locs_id, locs_desc, map, arcs, wo, wd,tsnetwork,shortest_time,physicalarcs, params, abbrev 
+    data=(cust=cust,locs=locs,arcs=arcs,wo=wo,wd=wd,locs_id=locs_id,locs_desc=locs_desc)
+    return data, map1, tsnetwork, params, abbrev
 end
     

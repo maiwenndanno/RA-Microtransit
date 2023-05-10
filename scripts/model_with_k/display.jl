@@ -1,18 +1,13 @@
 include("parameters.jl")
 
 function create_map(vbs, cust, hubs_ind, nb_locs)
-    map = Plots.plot()
+    map1 = Plots.plot()
     classic_vbs=classic_vbs_id(vbs,nb_locs,hubs_ind)
     colors= ["lightskyblue","lime","magenta","mediumblue","mintcream","mistyrose","moccasin","navy","olive","chocolate4","coral","cornflowerblue","cornsilk4","cyan","darkblue","darkcyan","darkgoldenrod", "deeppink","deepskyblue","dodgerblue","firebrick","forestgreen","fuchsia","gainsboro","goldenrod","gray"]
 
-    # plot depot 
-    #plot!(map,vbs[[depot_loc],:x], vbs[[depot_loc],:y], seriestype=:scatter, label="bus depot", color="tan4", text= vbs[depot_loc,:loc_id], markersize=4,legend=:outertopright)
-    # plot hubs
-    #plot!(map,vbs[hubs_ind,:x], vbs[hubs_ind,:y], seriestype=:scatter, label="hubs", color="blue", text= vbs[hubs_ind,:loc_id], markersize=4,legend=:outertopright)
     scatter!(vbs[hubs_ind,:x], vbs[hubs_ind,:y],label="hubs", color="red", markersize=4,legend=:outertopright)
-    # plot all the other vbs locations
     scatter!(vbs[classic_vbs,:x], vbs[classic_vbs,:y],label="vbs", color="black", markersize=4,legend=:outertopright)
-    #plot!(map,vbs[classic_vbs,:x], vbs[classic_vbs,:y], seriestype=:scatter, label="classic VBS", color="black", text= vbs[classic_vbs,:loc_id], markersize=4,legend=:outertopright)
+    
     for i in 1:nb_locs
         annotate!(
             vbs[i,:x], 
@@ -25,7 +20,7 @@ function create_map(vbs, cust, hubs_ind, nb_locs)
     scatter!(cust[!,:x_d], cust[!,:y_d], markershape=:diamond, color=colors[1:size(cust)[1]],label="Customers dest") #label="Cust $i d",legend=:outertopright
     #end  
     plot!(title="VBS Locations and Customer Origins/Destinations",titlefontsize=10)
-    return map
+    return map1
 end
 
 function plot_obj_time(obj,solvetime,x_values,x_axis)
@@ -37,7 +32,7 @@ function plot_obj_time(obj,solvetime,x_values,x_axis)
 end
 
 function classic_vbs_id(vbs,nb_locs,hubs_ind)
-    classic_vbs=vbs[1:nb_locs,:loc_id]
+    classic_vbs=vbs[1:nb_locs,:id]
     for i in hubs_ind
         classic_vbs=classic_vbs[classic_vbs.!=i]
     end
@@ -45,11 +40,11 @@ return classic_vbs
 end
 
 function display_KPIs(xi,x,z,tsnetwork,params,I,K,q,wo,t,print_all)
-    print_cust_KPIs(xi,x,tsnetwork,params,I,K,wo,t,print_all)
-    print_veh_KPIs(x,z,params,tsnetwork,K,q)
+    cust_KPIs_details,cust_KPIs=print_cust_KPIs(xi,x,tsnetwork,params,I,K,wo,t,print_all)
+    veh_KPIs=print_veh_KPIs(x,z,params,tsnetwork,K,q,print_all)
+    return cust_KPIs_details,cust_KPIs,veh_KPIs
 end
 function print_cust_KPIs(xi,x,tsnetwork,params,I,K,wo,t,print_all)
-    println("\n Customer KPIs:")
     Ai=params.Ai
     Ia=params.Ia
     P=params.P
@@ -61,6 +56,7 @@ function print_cust_KPIs(xi,x,tsnetwork,params,I,K,wo,t,print_all)
     travel_time=[]
     efficiency=[]
 
+    cust_KPIs_details=Dict()
     for i in I
         p_used=[p for p in P[i] if xi[i,p]==1][1]
         o=p_used["o"]
@@ -90,31 +86,41 @@ function print_cust_KPIs(xi,x,tsnetwork,params,I,K,wo,t,print_all)
                 println(" \t Path: from $o to $d with transfer at $h")
             end
 
-            println("\t Driving time : ", travel)
-            println("\t Walking time : ", round(walking))
-            println("\t Waiting time : ", wait)
-            println("\t Efficiency : ", ratio)
+            println("\t Driving time : ", round(travel))
+            println("\t Walking time : ", round(walking))#, " ,incl ", p_used["wo"], " to pick-up loc")
+            println("\t Waiting time : ", round(wait, digits=2))
+            println("\t Efficiency : ", round(ratio, digits=2))
         end
+        cust_KPIs_details[i]=Dict("travel"=> round(travel), "walking"=> string(round(walking)), "waiting"=> round(wait, digits=2), "efficiency"=> round(ratio, digits=2))
         # Add idle time later
     end
     
     # compute averages
-    avg_nb_transfers=mean(nb_transfers)
-    avg_waiting_time=mean(waiting_time)
-    avg_walking_time=mean(walking_time)
+    avg_nb_transfers=round(mean(nb_transfers),digits=2)
+    avg_waiting_time=round(mean(waiting_time),digits=2)
+    avg_walking_time=round(mean(walking_time),digits=2)
     #avg_idle_time=mean(idle_time)
-    avg_travel_time=mean(travel_time)
-    avg_efficiency=mean(efficiency)
+    avg_travel_time=round(mean(travel_time),digits=2)
+    avg_efficiency=round(mean(efficiency),digits=2)
 
-    println("Mean #transfers: ", round(avg_nb_transfers))
-    println("Mean waiting time: ", round(avg_waiting_time))
-    println("Mean walking time: ", round(avg_walking_time))
-    #println("Mean idle time: ", round(avg_idle_time))
-    println("Mean travel time: ", round(avg_travel_time))
-    println("Mean efficiency: ", round(avg_efficiency,digits=2))
+    if print_all
+        println("\n Customer KPIs:")
+        println("Mean #transfers: ", avg_nb_transfers)
+        println("Mean waiting time: ", avg_waiting_time)
+        println("Mean walking time: ", avg_walking_time)
+        #println("Mean idle time: ", round(avg_idle_time))
+        println("Mean travel time: ", avg_travel_time)
+        println("Mean efficiency: ", avg_efficiency)
+    end
+
+    return cust_KPIs_details, Dict("Mean #transfers"=> avg_nb_transfers, 
+                    "Mean waiting time"=> avg_waiting_time, 
+                    "Mean walking time"=> avg_walking_time, 
+                    "Mean travel time"=> avg_travel_time, 
+                    "Mean efficiency"=> avg_efficiency)
 end
 
-function cap(q,a,params,k)
+function cap(q,a,params,k,x)
     if length(params.Ia[a])>0
         cap = sum(q[i]*x[i,a,p,k] for i in params.Ia[a] for p in params.P[i])
     else
@@ -123,14 +129,11 @@ function cap(q,a,params,k)
     return cap
 end
 
-function print_veh_KPIs(x,z,params,tsnetwork,K,q)
-    println("\n Vehicle KPIs:")
+function print_veh_KPIs(x,z,params,tsnetwork,K,q,print_all)
     A_tilde_depot=params.A_tilde_depot
     dist=tsnetwork.dist
     arccost=tsnetwork.arccost
-
     nb_veh=sum(z[k,a] for k in K for a in A_tilde_depot[k])
-    println("# vehicles used: ",nb_veh)
 
     distances=[]
     service=[]
@@ -139,7 +142,7 @@ function print_veh_KPIs(x,z,params,tsnetwork,K,q)
     for k in K
         if sum(z[k,a] for a in params.A)>0 #vehicle used
             A_used = [a for a in params.A if z[k,a]==1]
-            A_carrying = [a for a in A_used if (length(params.Ia[a])>0 &&sum(x[i,a,p,k] for i in params.Ia[a] for p in params.P[i])>=1)]
+            A_carrying = [a for a in A_used if (length(params.Ia[a])>0 && sum(x[i,a,p,k] for i in params.Ia[a] for p in params.P[i])>=1)]
 
             travel= sum(dist[a] for a in A_used)
             push!(distances,travel)
@@ -150,28 +153,55 @@ function print_veh_KPIs(x,z,params,tsnetwork,K,q)
             carrying_time=sum(arccost[a] for a in A_carrying)
             push!(carrying,carrying_time)
 
-            capacity= mean(cap(q,a,params,k) for a in A_used)
+            capacity= mean(cap(q,a,params,k,x) for a in A_used)
             push!(capacities,capacity)
         end
     end
-    avg_distance=mean(distances)
-    avg_service=mean(service)
-    avg_carrying=mean(carrying)
-    avg_capacity=mean(capacities)
+    avg_distance=round(mean(distances))
+    avg_capacity=round(mean(capacities),digits=3)
+    avg_service=round(mean(service))
+    avg_carrying=round(mean(carrying))
 
-    println("Mean distance: ", round(avg_distance))
-    println("Mean capacity: ", round(avg_capacity,digits=3))
-    println("Mean service time: ", round(avg_service))
-    println("Mean carrying time: ", round(avg_carrying))
+    if print_all
+        println("\n Vehicle KPIs:")
+        println("# vehicles used: ",nb_veh)
+        println("Mean distance: ", avg_distance)
+        println("Mean capacity: ", avg_capacity)
+        println("Mean service time: ", avg_service)
+        println("Mean carrying time: ", avg_carrying)
+    end
+
+    return Dict("# Veh used" => nb_veh,
+                    "Mean distance"=> avg_distance, 
+                    "Mean capacity"=> avg_capacity, 
+                    "Mean service time"=> avg_service, 
+                    "Mean carrying time"=> avg_carrying)
 end
 
 #-----------------------------------------------------------------------------------#
 
-function print_traveling_arcs(z,ts,P,Ia,K,map,vbs,tsnetwork) # display from time ts
-    println("Traveling arcs used:")
+function print_traveling_arcs(sol,ts,params,K,map1,vbs,tsnetwork,print_all,save,resultfile) # display from time ts
+    if print_all
+        println("Traveling arcs used:")
+    end
+    if save
+        file=resultfile*"_traveling_arcs.txt"
+        open(file, "w") do io
+            println(io, "Traveling arcs used:")
+        end
+    end
+    z,x=sol.z,sol.x
+    P,Ia=params.P,params.Ia
     colors= ["lightsalmon4","lightskyblue","lime","magenta","mediumblue","mintcream","mistyrose","moccasin","navy","olive","chocolate4","coral","cornflowerblue","cornsilk4","cyan","darkblue","darkcyan","darkgoldenrod", "deeppink","deepskyblue","dodgerblue","firebrick","forestgreen","fuchsia","gainsboro","goldenrod","gray"]
     for k in K
-        println("Bus $k:")
+        if print_all
+            println("-- Bus $k: ")
+        end
+        if save
+            open(file, "a") do io
+                println(io, "-- Bus $k: ")
+            end
+        end
         A_used = [a for a in params.A if z[k,a]==1]
         for t in ts:horizon
             for a in A_used
@@ -181,20 +211,34 @@ function print_traveling_arcs(z,ts,P,Ia,K,map,vbs,tsnetwork) # display from time
                 start_time=tsnetwork.nodedesc[a_val[1]][2]
                 I_used = [i for i in Ia[a] if sum(x[i,a,p,k] for p in P[i])>0]
                 if start_time==t #&& start_loc!=end_loc
-                    if length(I_used)>0
-                        println("\t Time $t: from loc $start_loc to $end_loc, with cust $I_used")
-                    else
-                        println("\t Time $t: from loc $start_loc to $end_loc")
+                    if print_all
+                        if length(I_used)>0
+                            println("\t Time $t: from loc $start_loc to $end_loc, with cust $I_used")
+                        else
+                            println("\t Time $t: from loc $start_loc to $end_loc")
+                        end
+                    end
+                    if save
+                        open(file, "a") do io
+                            if length(I_used)>0
+                                println(io, "\t Time $t: from loc $start_loc to $end_loc, with cust $I_used")
+                            else
+                                println(io, "\t Time $t: from loc $start_loc to $end_loc")
+                            end
+                        end
                     end
                     if end_loc <=nb_locs # We don't show travel to sink
-                    # plot line for physical arc between start_loc and end_loc on plot map
-                        plot!(map, [vbs[start_loc,:x], vbs[end_loc,:x]],[vbs[start_loc,:y], vbs[end_loc,:y]], color=colors[k], label="")
+                    # plot line for physical arc between start_loc and end_loc on plot map1
+                        plot!(map1, [vbs[start_loc,:x], vbs[end_loc,:x]],[vbs[start_loc,:y], vbs[end_loc,:y]], color=colors[k], label="")
                     end
                 end
             end
         end
     end
-    return map
+    if save
+        savefig(map1,resultfile*"_map.png")
+    end
+    return map1
 end
 
 #-----------------------------------------------------------------------------------#
@@ -211,7 +255,25 @@ function arc_traveled(cust,time,A,nodedesc,arcdesc,x,P,K,arccost)
     end
 end
 
+#-----------------------------------------------------------------------------------#
+function print_cust_bus_details(params,abbrev,depot_locs)
+    q, t, I, _=abbrev;
+    for i in I
+        load= q[i]
+        println("Cust $i, load $load - Pick-up vbs: ", params.vo[i], ", Drop-off vbs: ", params.vd[i], ", \t depart at: ", round(t[i],digits=1), ", arrival before: ", params.deadlines[i])
+    end
+    print("Bus depot locations: ", depot_locs)# " indexed by :", locs_id.depots)
+end
 
+#-------------  
+function print_nb_arcs(tsnetwork,params,I)
+    println("Initialized time space network with...")
+    println("Num nodes (total) = ", tsnetwork.numnodes)
+    println("Num arcs (total) = ", tsnetwork.numarcs);
+    for i in I
+        println("Num arcs for Cust $i = ", length(params.Ai[i]))
+    end
+end
 
 # -----------------------------------------------------------------------------------#
 
@@ -312,7 +374,12 @@ function timespaceviz_arcs(drawingname,horizon, tstep, tsn, arclist; x_size=1200
 
 end
 
-function timespaceviz_bus(drawingname,horizon, tstep, tsn, arcs_dict; x_size=1200, y_size=700)
+function timespaceviz_bus(drawingname,horizon, tstep, tsn, z; x_size=1200, y_size=700)
+    arcdict=Dict()
+    for k in K
+    # list of arcs traveled by vehicle k
+        arcdict[k] = [a for a in params.A if z[k,a]==1]
+    end
 
 	#Find coordinates for each time-space node
 	nodelist = []
@@ -338,8 +405,8 @@ function timespaceviz_bus(drawingname,horizon, tstep, tsn, arcs_dict; x_size=120
 	#Arcs for visualization
 	#Duplicate for multiple input arc lists with different colors/thickness/dash if you're trying to show m
 	arcinfo = []
-    for bus in keys(arcs_dict)
-        arclist = arcs_dict[bus]
+    for bus in keys(arcdict)
+        arclist = arcdict[bus]
         for a in arclist
             startPoint = nodePoints[tsn.arcdesc[a][1]]
             endPoint = nodePoints[tsn.arcdesc[a][2]]
@@ -412,4 +479,26 @@ function timespaceviz_bus(drawingname,horizon, tstep, tsn, arcs_dict; x_size=120
 	finish()
 	preview()
 
+end
+
+function write_result(resultfile,sol,tsnetwork,params,abbrev,wo,print_all)
+    q, t, I, K=abbrev;
+    xi,x,z,time,objs=sol.xi,sol.x,sol.z,sol.time,sol.objs
+
+    res_file=open(resultfile*"_res.txt","w")
+    write(res_file, "\n ------ Objective values ------ \n")
+    writedlm(res_file, objs)
+    cust_KPIs_details,cust_KPIS,veh_KPIS=display_KPIs(xi,x,z,tsnetwork,params,I,K,q,wo,t,print_all);
+    write(res_file, "\n ------ Customer KPIs ------ \n")
+    writedlm(res_file, cust_KPIS)
+    write(res_file, "\n ------ Vehicle KPIs ------ \n")
+    writedlm(res_file, veh_KPIS)
+    write(res_file, "\n ------ Solving time ------ \n")
+    writedlm(res_file, time)
+    write(res_file, "\n ------ Customer KPIs details ------ ")
+    for i in I
+        write(res_file, "\n Customer "*string(i)*"\n")
+        writedlm(res_file, cust_KPIs_details[i])
+    end
+    close(res_file)
 end

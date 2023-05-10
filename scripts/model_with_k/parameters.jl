@@ -1,11 +1,12 @@
 include("shortestpath.jl")
 
-function create_params(tsnetwork,physicalarcs,shortest_time,hubs_ind, model_inputs, wo, wd,I,t,tstep,horizon)
-    G,Gtype,Wk,nb_veh,Q,depot_locs=model_inputs
+function create_params(tsnetwork,hubs_ind, model_inputs, nb_locs,depot_locs,wo, wd,I,t,tstep,horizon)
+    G,Gtype,Wk,Q=model_inputs
+    physicalarcs,shortest_time=tsnetwork.physicalarcs,tsnetwork.shortest_time
     vo, vd = create_vo_vd(wo, wd, Wk, I);
     gamma = create_gamma(I,vo,vd,wo,wd,shortest_time,horizon);
     N, N_depot, N_star = create_Ns(tsnetwork.nodeid, tsnetwork.nodedesc, depot_locs, nb_locs);
-    A, A_tilde_depot,Ai,notAi, deadlines = create_As(tsnetwork, physicalarcs, N_depot, shortest_time, gamma, I, Wk, vo, vd, wo,wd, t, G, Gtype,tstep,horizon)
+    A, A_tilde_depot,Ai,notAi, deadlines = create_As(tsnetwork, physicalarcs, N_depot, shortest_time, gamma, I, nb_locs, vo, vd, wo,wd, t, G, Gtype,tstep,horizon)
     Ai_plus,Ai_minus=create_Aplus_minus_i(tsnetwork,I,Ai,N);
     Ia=create_Ia(I,A,Ai);
     P,P_T = create_paths(vo,vd,I,hubs_ind,wo,wd);
@@ -66,7 +67,7 @@ function create_Aplus_minus_i(tsn,I,Ai,N)
 end
 #-----------------------------------------------------------------------------------#
 
-function create_As(tsn, physicalarcs, N_depot, shortest_time, gamma, I, Wk, vo, vd, wo, wd, t, G, Gtype,tstep,horizon)
+function create_As(tsn, physicalarcs, N_depot, shortest_time, gamma, I, nb_locs, vo, vd, wo, wd, t, G, Gtype,tstep,horizon)
 
     A=collect(values(tsn.arcid))
     veh=collect(keys(N_depot))
@@ -83,7 +84,7 @@ function create_As(tsn, physicalarcs, N_depot, shortest_time, gamma, I, Wk, vo, 
     end
 
     # Reduce the number of arcs for each customer with heuristic
-    Ai,notAi,deadlines=reduce_arcs(tsn, physicalarcs, G, Gtype, vo, vd, wo, wd, t,shortest_time, gamma,Wk,I,tstep,horizon)
+    Ai,notAi,deadlines=reduce_arcs(tsn, physicalarcs, G, Gtype, vo, vd, wo, wd, t,shortest_time, gamma,nb_locs,I,tstep,horizon)
     return A,A_tilde_depot,Ai,notAi, deadlines
 end
 
@@ -101,7 +102,7 @@ function create_Ia(I,A,Ai)
     return Ia
 end
 #---------------------------------------------------------------------------------------#
-function reduce_arcs(tsn, physicalarcs, G, Gtype, vo, vd, wo,wd, t, shortest_time,gamma,Wk,I,tstep,horizon)
+function reduce_arcs(tsn, physicalarcs, G, Gtype, vo, vd, wo,wd, t, shortest_time,gamma,nb_locs,I,tstep,horizon)
     Ai=Dict()
     notAi=Dict() # = A minus A[i]
 

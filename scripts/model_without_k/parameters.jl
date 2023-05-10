@@ -1,20 +1,21 @@
 include("shortestpath.jl")
 
-function create_params(tsnetwork,physicalarcs,shortest_time,locs_id, model_inputs, wo, wd,I,t,tstep,horizon)
+function create_params(tsnetwork,locs_id, model_inputs, wo, wd,I,t,tstep,horizon,benchmark)
     G,Gtype,Wk,Q=model_inputs
-    vo, vd = create_vo_vd(wo, wd, Wk, I);
+    physicalarcs,shortest_time=tsnetwork.physicalarcs,tsnetwork.shortest_time
+    vo, vd = create_vo_vd(wo, wd, Wk, I,benchmark);
     gamma = create_gamma(I,vo,vd,wo,wd,shortest_time,horizon);
-    N, N_depot, N_star = create_Ns(tsnetwork.nodeid, tsnetwork.nodedesc, locs_id);
+    N, N_depot, N_star,N_except_sink = create_Ns(tsnetwork.nodeid, tsnetwork.nodedesc, locs_id);
     A, A_tilde_depot,Ai, deadlines = create_As(tsnetwork, physicalarcs, locs_id, N_depot, shortest_time, gamma, I, vo, vd, wo,wd, t, G, Gtype,tstep,horizon)
-    Ai_plus,Ai_minus=create_Aplus_minus_i(tsnetwork,I,Ai,N);
+    Ai_plus,Ai_minus,Ai_minus_tilde=create_Aplus_minus_i(tsnetwork,I,Ai,N);
     Ia=create_Ia(I,A,Ai);
-    P,P_T = create_paths(vo,vd,I,locs_id,wo,wd);
-    O, D, H, H_time = create_OHD_sets(N,I,P,t,gamma,tsnetwork.nodedesc,tstep,wo, wd,deadlines,shortest_time, horizon);
+    P,P_T = create_paths(vo,vd,I,locs_id,wo,wd,benchmark);
+    O, D, H, H_times = create_OHD_sets(N,I,P,t,gamma,tsnetwork.nodedesc,tstep,wo, wd,deadlines,shortest_time, horizon);
     Ai_except_H=create_Ai_except_H(Ai,I,P,tsnetwork);
     N_vo, N_vd, N_except_vo_vd_H=create_N_vo_vd_H(N,vo,vd,I,P, H,tsnetwork.nodedesc);
-    return (vo=vo, vd=vd, P=P, H=H, H_time=H_time, O=O, D=D, deadlines=deadlines,
-            N_vo=N_vo, N_vd=N_vd, N_except_vo_vd_H=N_except_vo_vd_H, 
-            P_T=P_T, A=A, Ai=Ai, Ai_plus=Ai_plus, Ai_minus=Ai_minus, Ia=Ia, Ai_except_H=Ai_except_H,
+    return (vo=vo, vd=vd, P=P, H=H, H_times=H_times, O=O, D=D, deadlines=deadlines,
+            N_vo=N_vo, N_vd=N_vd, N_except_vo_vd_H=N_except_vo_vd_H, N_except_sink=N_except_sink,
+            P_T=P_T, A=A, Ai=Ai, Ai_plus=Ai_plus, Ai_minus=Ai_minus, Ai_minus_tilde=Ai_minus_tilde, Ia=Ia, Ai_except_H=Ai_except_H,
             A_tilde_depot=A_tilde_depot, N=N, N_depot=N_depot, N_star=N_star,gamma=gamma)
 end
 
@@ -24,20 +25,24 @@ function create_Ns(nodeid,nodedesc, locs_id)
     N=collect(values(nodeid)) # set of time-space nodes indices
 
     N_depot=Dict()
-    for k in locs_id.depots # depot indices
-        N_depot[k]=Vector()
+    for d in locs_id.depots # depot indices
+        N_depot[d]=Vector()
     end
 
+    N_except_sink=Vector() # set of time-space nodes indices excluding the sink
     N_star=Vector() # set of time-space nodes indices excluding the sink and the depot locs
 
     for n in N
-        if nodedesc[n][1] in locs_id.depots # if at depot location
-            push!(N_depot[nodedesc[n][1]], n)
-        elseif !(nodedesc[n][1] in locs_id.sink) # if not at sink location
-            push!(N_star, n)
+        if !(nodedesc[n][1] in locs_id.sink) # if not at sink location
+            push!(N_except_sink, n)
+            if nodedesc[n][1] in locs_id.depots # neither at depot location
+                push!(N_depot[nodedesc[n][1]], n)
+            else
+                push!(N_star, n)
+            end
         end
     end
-    return N, N_depot, N_star
+    return N, N_depot, N_star, N_except_sink
 
 end
 
@@ -45,12 +50,15 @@ end
 function create_Aplus_minus_i(tsn,I,Ai,N)
     Ai_plus=Dict()
     Ai_minus=Dict()
+    Ai_minus_tilde=Dict()
     for i in I
         Ai_plus[i]=Dict()
         Ai_minus[i]=Dict()
+        Ai_minus_tilde[i]=Dict()
         for n in N
             Ai_plus[i][n]=Vector()
             Ai_minus[i][n]=Vector()
+            Ai_minus_tilde[i][n]=Vector()
             for a in tsn.A_plus[n]
                 if a in Ai[i]
                     push!(Ai_plus[i][n],a)
@@ -59,11 +67,14 @@ function create_Aplus_minus_i(tsn,I,Ai,N)
             for a in tsn.A_minus[n]
                 if a in Ai[i]
                     push!(Ai_minus[i][n],a)
+                    if tsn.nodedesc[tsn.arcdesc[a][1]][1]!=tsn.nodedesc[tsn.arcdesc[a][2]][1] # if traveling arcs
+                        push!(Ai_minus_tilde[i][n],a)
+                    end
                 end
             end
         end
     end
-    return Ai_plus, Ai_minus
+    return Ai_plus, Ai_minus, Ai_minus_tilde
 end
 #-----------------------------------------------------------------------------------#
 
@@ -156,17 +167,23 @@ end
 
 #-----------------------------------------------------------------------------------#
 
-function create_vo_vd(wo, wd, Wk, I)
+function create_vo_vd(wo, wd, Wk, I,benchmarki)
 
     vo = Dict() # dictionnaire of pick-up locations indices
     vd = Dict() # dictionnaire of drop-off locations indices
+    # select the closest pick-up and drop-off locations for each customer
     for i in I
-        # find all the locations that are within walking distance of the customer origin
-        vo[i]=findall(x->x<=Wk, wo[i,:])
-        #deleteat!(vo[i], findall(x->x==depot_loc, vo[i]))
-        # find all the locations that are within walking distance of the customer destination
-        vd[i]=findall(x->x<=Wk, wd[i,:])
-        #deleteat!(vd[i], findall(x->x==depot_loc, vd[i]))
+        if benchmark
+            vo[i]=argmin(wo[i,:])
+            vd[i]=argmin(wd[i,:])
+        else
+            # find all the locations that are within walking distance of the customer origin
+            vo[i]=findall(x->x<=Wk, wo[i,:])
+            #deleteat!(vo[i], findall(x->x==depot_loc, vo[i]))
+            # find all the locations that are within walking distance of the customer destination
+            vd[i]=findall(x->x<=Wk, wd[i,:])
+            #deleteat!(vd[i], findall(x->x==depot_loc, vd[i]))
+        end
     end
     return vo, vd
 
@@ -174,7 +191,7 @@ end
 
 #-----------------------------------------------------------------------------------#
 
-function create_paths(vo,vd,I,locs_id,wo,wd)
+function create_paths(vo,vd,I,locs_id,wo,wd,benchmark)
     hubs_ind=locs_id.hubs # not duplicated
     P=Dict() # dictionnaire of paths of all customers
     P_T=Dict()  # dictionnaire of indirect paths of all customers 
@@ -184,12 +201,18 @@ function create_paths(vo,vd,I,locs_id,wo,wd)
         for o in vo[i]
             for d in vd[i]
                 if o!=d
-                    direct_path=Dict("o"=>o,"d"=>d,"transfer"=>0,"walking"=>round(wo[i,o]+wd[i,d],digits=2)) 
+                    direct_path=Dict("o"=>o,"d"=>d,"transfer"=>0,"walking"=>round(wo[i,o]+wd[i,d],digits=2),"wo"=> round(wo[i,o],digits=2),"wd"=> round(wd[i,d],digits=2))
                     push!(P[i], direct_path)
-                    for h in hubs_ind
-                        transfer_path=Dict("o"=>o,"d"=>d,"h"=>locs_id.similar_hubs[h],"transfer"=>1,"walking"=> round(wo[i,o]+wd[i,d],digits=2))
-                        push!(P[i], transfer_path)
-                        push!(P_T[i], transfer_path)
+                    if benchmark
+                        continue # No indirect paths in benchmark
+                    else
+                        for h in hubs_ind
+                            if !(d in locs_id.similar_hubs[h]) # If h == d, no transfer possible
+                                transfer_path=Dict("o"=>o,"d"=>d,"h"=>locs_id.similar_hubs[h],"transfer"=>1,"walking"=> round(wo[i,o]+wd[i,d],digits=2), "wo"=> round(wo[i,o],digits=2),"wd"=> round(wd[i,d],digits=2))
+                                push!(P[i], transfer_path)
+                                push!(P_T[i], transfer_path)
+                            end
+                        end
                     end
                 end
             end
@@ -243,14 +266,14 @@ function create_OHD_sets(N,I,P,t,gamma,nodedesc,tstep,wo, wd,deadlines, shortest
     O=Dict() # dictionnaire of pick-up nodes indices for each customer and each path
     D=Dict() # dictionnaire of drop-off nodes indices for each customer and each path
     H=Dict() # dictionnaire of transfer nodes indices for each customer and each path
-    H_time=Dict() # dictionnaire of transfer nodes indices for each customer and each path at time t
+    H_times=Dict() # dictionnaire of transfer nodes indices for each customer and each path at time t
     for i in I
-        O[i], D[i], H[i], H_time[i]=Dict(), Dict(), Dict(), Dict()
+        O[i], D[i], H[i], H_times[i]=Dict(), Dict(), Dict(), Dict()
 
         for p in P[i]
-            O_ip, D_ip, H_ip, H_time_ip=Vector(), Vector(), Vector(), Dict()
+            O_ip, D_ip, H_ip, H_times_ip=Vector(), Vector(), Vector(), Dict()
             for t in 0:tstep:horizon
-                H_time_ip[t]=Vector()
+                H_times_ip[t]=Vector()
             end
             for n in N
                 node=nodedesc[n]
@@ -264,7 +287,7 @@ function create_OHD_sets(N,I,P,t,gamma,nodedesc,tstep,wo, wd,deadlines, shortest
                     if p["transfer"]==1 # if transfer
                         if node[1] in p["h"] 
                             push!(H_ip, n)
-                            push!(H_time_ip[node[2]], n)
+                            push!(H_times_ip[node[2]], n)
                         end
                     end
                 end
@@ -272,10 +295,10 @@ function create_OHD_sets(N,I,P,t,gamma,nodedesc,tstep,wo, wd,deadlines, shortest
             O[i][p]=O_ip
             D[i][p]=D_ip
             H[i][p]=H_ip
-            H_time[i][p]=H_time_ip
+            H_times[i][p]=H_times_ip
         end
     end
-    return O, D, H, H_time
+    return O, D, H, H_times
 end
 
 #-----------------------------------------------------------------------------------#

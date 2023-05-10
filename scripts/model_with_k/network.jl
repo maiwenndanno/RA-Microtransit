@@ -1,3 +1,4 @@
+include("shortestpath.jl")
 #Create the time-space nodes, returning the number, ids, and descriptions
 function createtimespacenodes(nb_locs, horizon, tstep)
 
@@ -41,7 +42,7 @@ end
 #-----------------------------------------------------------------------------------#
 
 #Create the time-space network arcs, returning the number, ids, descriptions, and cost of each arc
-function createtimespacearcs(physicalarcs, nb_locs, numnodes, nodeid)
+function createtimespacearcs(physicalarcs, nb_locs, numnodes, nodeid, horizon, tstep)
 
 	arcid, arcdesc, A_plus, A_minus, arccost, dist = Dict(), Dict(), Dict(), Dict(), [],[]
 	
@@ -89,11 +90,12 @@ function createfullnetwork(locations, arcs, nb_locs, horizon, tstep)
 	loccoords = hcat(locations[:,2], locations[:,3])
 	numnodes, nodeid, nodedesc, times = createtimespacenodes(nb_locs, horizon, tstep)
 	physicalarcs = getphysicalarcs(arcs, tstep)
-	numarcs, arcid, arcdesc, A_plus, A_minus, arccost,dist = createtimespacearcs(physicalarcs, nb_locs, numnodes, nodeid)
+	numarcs, arcid, arcdesc, A_plus, A_minus, arccost,dist = createtimespacearcs(physicalarcs, nb_locs, numnodes, nodeid, horizon, tstep)
+	shortest_time=cacheShortestTravelTimes(physicalarcs,nb_locs)
 
 	#Create a NamedTuple with all the useful network data/parameters
-	tsnetwork = (loccoords=loccoords, numnodes=numnodes, nodeid=nodeid, nodedesc=nodedesc, times=times, numarcs=numarcs, arcid=arcid, arcdesc=arcdesc, A_plus=A_plus, A_minus=A_minus, arccost=arccost,dist=dist)
+	tsnetwork = (numnodes=numnodes, nodeid=nodeid, nodedesc=nodedesc, times=times, numarcs=numarcs, arcid=arcid, arcdesc=arcdesc, A_plus=A_plus, A_minus=A_minus, arccost=arccost,dist=dist, physicalarcs=physicalarcs, shortest_time=shortest_time)
 
-	return tsnetwork,physicalarcs
+	return tsnetwork
 
 end

@@ -1,5 +1,5 @@
 # ---------- 2nd model - Version of April 29 (with arc reduction heuristic for Ai[i] and Ia[a])
-function network_model_v2(Q,abbrev,wo,tsnetwork,params,coefficients,output=1)
+function network_model(Q,abbrev,wo,tsnetwork,params,coefficients,output=1)
     # Create a model
     model = Model(Gurobi.Optimizer)
     set_optimizer_attribute(model, "OutputFlag", output)
@@ -9,7 +9,7 @@ function network_model_v2(Q,abbrev,wo,tsnetwork,params,coefficients,output=1)
     q, t, I, K=abbrev
     A_plus, A_minus, arccost,nodedesc, arcdesc =tsnetwork.A_plus, tsnetwork.A_minus, tsnetwork.arccost,tsnetwork.nodedesc, tsnetwork.arcdesc;
     P, H, O, D, N_vo, N_vd, N_except_vo_vd_H, P_T= params.P, params.H, params.O, params.D, params.N_vo, params.N_vd, params.N_except_vo_vd_H, params.P_T;
-    A, Ai, Ai_plus, Ai_minus,notAi, Ia, N, N_star, A_tilde_depot=params.A, params.Ai, params.Ai_plus, params.Ai_minus, params.notAi, params.Ia, params.N, params.N_star, params.A_tilde_depot;
+    A, Ai, Ai_plus, Ai_minus, Ia, N, N_star, A_tilde_depot=params.A, params.Ai, params.Ai_plus, params.Ai_minus, params.Ia, params.N, params.N_star, params.A_tilde_depot;
     c=arccost #  duration of the arc
 
     # Create variables
@@ -53,12 +53,13 @@ function network_model_v2(Q,abbrev,wo,tsnetwork,params,coefficients,output=1)
     @expression(model, Wait, sum((nodedesc[arcdesc[a][1]][2]-t[i]-wo[i,nodedesc[n][1]])*x[i,a,p,k] for i in I, p in P[i], n in O[i][p], a in Ai_plus[i][n], k in K))
     @expression(model, Traveling, sum(c[a]*x[i,a,p,k] for i in I, p in P[i], a in Ai[i], k in K))
     @expression(model, Tr, sum(p["transfer"]*xi[i,p] for i in I, p in P[i]))
-    @expression(model, Veh, sum(sum(c[a]*z[k,a] for a in A) + nu*sum(z[k,a] for a in A_tilde_depot[k]) for k in K))
+    @expression(model, Veh, sum(c[a]*z[k,a] for a in A, k in K))
+    @expression(model, Veh_nb, sum(z[k,a] for k in K, a in A_tilde_depot[k]))
     @expression(model, Unmet, sum((1-sum(xi[i,p] for p in P[i]) for i in I)))
 
     # Set objective
     @objective(model, Min, mu*Walk + beta*Wait + Traveling + lambda*Tr+
-                            alpha1*Veh + 
+                            alpha1*(Veh+nu*Veh_nb) + 
                             alpha2*Unmet)
 
     # Solve the model
@@ -71,12 +72,16 @@ function network_model_v2(Q,abbrev,wo,tsnetwork,params,coefficients,output=1)
         "Traveling" => round(value.(Traveling),digits=2),
         "Tr" => round(value.(Tr),digits=2),
         "Veh" => round(value.(Veh),digits=2),
+        "Veh_nb" => round(value.(Veh_nb),digits=2),
         "Unmet" => round(value.(Unmet),digits=2))
-    return value.(xi),value.(x),value.(z), objective_value(model),solvetime,objs
+    
+    solution = (xi=value.(xi),x=value.(x),z=value.(z), obj=objective_value(model),time=solvetime,objs=objs)
+
+    return solution
 end
 
 # ---------- 1st model - Version of April 18
-function network_model_v1(I,K,Q,q,t,wo,tsnetwork,params,coefficients)
+function network_model_OLD(I,K,Q,q,t,wo,tsnetwork,params,coefficients)
     # Create a model
     model = Model(Gurobi.Optimizer)
     set_optimizer_attribute(model, "OutputFlag", 0)
