@@ -1,28 +1,33 @@
 include("parameters.jl")
+using Colors
 
 function create_map(locs, cust, locs_id)
-    map = Plots.plot()
-    colors= ["lightskyblue","lime","magenta","mediumblue","mintcream","mistyrose","moccasin","navy","olive","chocolate4","coral","cornflowerblue","cornsilk4","cyan","darkblue","darkcyan","darkgoldenrod", "deeppink","deepskyblue","dodgerblue","firebrick","forestgreen","fuchsia","gainsboro","goldenrod","gray"]
+    map = Plots.plot(background_color=:transparent,size=(960,540))
+
+    num_colors = size(cust)[1]
+    colors = [RGB(0.5,0.5,0.5) .+ t/2 .* (RGB(1,0,0) .- RGB(0.5,0.5,0.5)) for t in range(0, stop=1, length=num_colors)]
+
     hubs_id=locs_id.hubs
     classic_vbs_id=locs_id.classic_vbs
 
     # plot hubs
-    scatter!(locs[hubs_id,:x], locs[hubs_id,:y],label="hubs", color="red", markersize=4,legend=:outertopright)
+    scatter!(locs[hubs_id,:x], locs[hubs_id,:y],label="hubs", color="red", markersize=5,legend=:outertopright)
     # plot all the other vbs locations
-    scatter!(locs[classic_vbs_id,:x], locs[classic_vbs_id,:y],label="vbs", color="black", markersize=4,legend=:outertopright)
+    scatter!(locs[classic_vbs_id,:x], locs[classic_vbs_id,:y],label="vbs", color="black", markersize=5,legend=:outertopright)
     #plot!(map,locs[classic_vbs_id,:x], locs[classic_vbs_id,:y], seriestype=:scatter, label="classic VBS", color="black", text= locs[classic_vbs_id,:loc_id], markersize=4,legend=:outertopright)
+    height=maximum(locs[!,:y])
     for i in classic_vbs_id
         annotate!(
             locs[i,:x], 
-            locs[i,:y] + 0.5, 
-            Plots.text("$i",8)
+            locs[i,:y] + height/20, 
+            Plots.text("$i",8,:black)
         )
     end
     for i in hubs_id
         annotate!(
                 locs[i,:x], 
-                locs[i,:y] + 0.5, 
-                Plots.text("$i",8)
+                locs[i,:y] + height/20, 
+                Plots.text("$i",8,:black)
             )
     end
     # For each customer, plot the origin and destination point in the same color
@@ -94,7 +99,7 @@ function print_cust_KPIs(xi,x,tsnetwork,params,I,wo,t,print_all)
             println("\t Waiting time : ", round(wait, digits=2))
             println("\t Efficiency : ", round(ratio, digits=2))
         end
-        cust_KPIs_details[i]=Dict("travel"=> round(travel), "walking"=> string(round(walking))*" ,incl "*string(p_used["wo"])*" to pick-up loc", "waiting"=> round(wait, digits=2), "efficiency"=> round(ratio, digits=2))
+        cust_KPIs_details[i]=Dict("itinerary" => "from $o to $d","transfer" => transfer, "travel"=> round(travel), "walking"=> string(round(walking))*" ,incl "*string(p_used["wo"])*" to pick-up loc", "waiting"=> round(wait, digits=2), "efficiency"=> round(ratio, digits=2))
         # Add idle time later
     end
     
@@ -123,7 +128,7 @@ function print_cust_KPIs(xi,x,tsnetwork,params,I,wo,t,print_all)
                     "Mean efficiency"=> avg_efficiency)
 end
 
-function cap(q,a,params)
+function cap(q,a,params,x)
     if length(params.Ia[a])>0
         cap = sum(q[i]*x[i,a,p] for i in params.Ia[a] for p in params.P[i])
     else
@@ -142,12 +147,11 @@ function print_veh_KPIs(x,z,params,tsnetwork,q, locs_id, print_all)
 
     distances=[]
     service=[]
-    carrying=[]
+    empty=[]
     capacities=[]
 
     A_used = [a for a in params.A if z[a]==1]
-    A_carrying = [a for a in A_used if (length(params.Ia[a])>0 &&sum(x[i,a,p] for i in params.Ia[a] for p in params.P[i])>=1)]
-
+    A_carrying = [a for a in A_used if (length(params.Ia[a])>0 && sum(x[i,a,p] for i in params.Ia[a] for p in params.P[i])>=1)]
     travel= sum(dist[a] for a in A_used)
     push!(distances,travel)
 
@@ -155,15 +159,16 @@ function print_veh_KPIs(x,z,params,tsnetwork,q, locs_id, print_all)
     push!(service,serv_time)
 
     carrying_time=sum(arccost[a] for a in A_carrying)
-    push!(carrying,carrying_time)
+    empty_time=serv_time-carrying_time
+    push!(empty,empty_time)
 
-    capacity= mean(cap(q,a,params) for a in A_used)
+    capacity= mean(cap(q,a,params,x) for a in A_used)
     push!(capacities,capacity)
     
     avg_distance=round(mean(distances))
     avg_capacity=round(mean(capacities),digits=3)
     avg_service=round(mean(service))
-    avg_carrying=round(mean(carrying))
+    avg_empty=round(mean(empty))
 
     if print_all
         println("\n Vehicle KPIs:")
@@ -171,24 +176,27 @@ function print_veh_KPIs(x,z,params,tsnetwork,q, locs_id, print_all)
         println("Mean distance: ", avg_distance)
         println("Mean capacity: ", avg_capacity)
         println("Mean service time: ", avg_service)
-        println("Mean carrying time: ", avg_carrying)
+        println("Mean empty time: ", avg_empty)
     end
 
     return Dict("# Veh used" => nb_veh,
                     "Mean distance"=> avg_distance, 
                     "Mean capacity"=> avg_capacity, 
                     "Mean service time"=> avg_service, 
-                    "Mean carrying time"=> avg_carrying)
+                    "Mean empty time"=> avg_empty)
 end
 
 #-----------------------------------------------------------------------------------#
-function print_cust_bus_details(params,abbrev,depot_locs)
+function print_cust_bus_details(params,abbrev,locs_id)
     q, t, I, _=abbrev;
     for i in I
         load= q[i]
-        println("Cust $i, load $load - Pick-up vbs: ", params.vo[i], ", Drop-off vbs: ", params.vd[i], ", \t depart at: ", round(t[i],digits=1), ", arrival before: ", params.deadlines[i])
+        duplicated_hubs= setdiff(locs_id.all_hubs,locs_id.hubs)
+        pick_ups=setdiff(params.vo[i], duplicated_hubs)
+        drop_offs=setdiff(params.vd[i], duplicated_hubs)
+        println("Cust $i, load $load - Pick-up vbs: ", pick_ups, ", Drop-off vbs: ", drop_offs, ", \t depart at: ", round(t[i],digits=1), ", arrival before: ", params.deadlines[i])
     end
-    print("Bus depot locations: ", depot_locs)# " indexed by :", locs_id.depots)
+    print("Bus depot locations: ", locs_id.new_depot_locs)# " indexed by :", locs_id.depots)
 end
 
 #-------------  
@@ -202,30 +210,32 @@ function print_nb_arcs(tsnetwork,params,I)
 end
 
 
-function print_traveling_arcs(sol,ts,map1,vbs,tsnetwork,params,locs_id,locs_desc,print_all,save,res_file) # display from time ts
+function print_traveling_arcs(sol,ts,map1,vbs,tsnetwork,params,horizon,locs_id,locs_desc,print_all,save,resultfolder) # display from time ts
     if print_all
         println("Traveling arcs used:")
     end
     if save
-        file=res_file*"_traveling_arcs.txt"
-        open(file, "w") do io
+        res_file=resultfolder*"traveling_arcs.txt"
+        open(res_file, "w") do io
             println(io, "Traveling arcs used:")
         end
     end
-    colors= ["lime","magenta","mediumblue","mintcream","mistyrose","moccasin","navy","olive","chocolate4","coral","cornflowerblue","cornsilk4","cyan","darkblue","darkcyan","darkgoldenrod", "deeppink","deepskyblue","dodgerblue","firebrick","forestgreen","fuchsia","gainsboro","goldenrod","gray"]
+    colors=[:blue,:orange,:cyan,:purple,:lime,:teal,:brown,:green,:indigo,:pink,:olive,:maroon,:navy,:darkcyan,:darkmagenta,:darkorange,:forestgreen,"mediumblue","mintcream","mistyrose","moccasin","navy","chocolate4","coral","cornflowerblue","cornsilk4","cyan","darkblue","darkcyan","darkgoldenrod", "deeppink","deepskyblue","dodgerblue","firebrick","fuchsia","gainsboro","goldenrod","gray"]
     z,x=sol.z,sol.x
     P=params.P
     Ia=params.Ia
     arcs_dict=get_bus_routes(z,tsnetwork,params,locs_id)
+    map2=deepcopy(map1)
     for i in 1:length(locs_id.depots)
         if print_all
             println("-- Bus $i: ")
         end
         if save
-            open(file, "a") do io
+            open(res_file, "a") do io
                 println(io, "-- Bus $i: ")
             end
         end
+        arcs_plot_i=[]
         for t in ts:horizon
             for a in arcs_dict[locs_id.depots[i]]
                 a_val=tsnetwork.arcdesc[a]
@@ -233,7 +243,7 @@ function print_traveling_arcs(sol,ts,map1,vbs,tsnetwork,params,locs_id,locs_desc
                 end_loc=tsnetwork.nodedesc[a_val[2]][1]
                 start_time=tsnetwork.nodedesc[a_val[1]][2]
                 I_used = [i for i in Ia[a] if sum(x[i,a,p] for p in P[i])>0]
-                if start_time==t #&& start_loc!=end_loc
+                if start_time==t && start_loc!=end_loc
                     viz_start_loc=locs_desc[start_loc]
                     viz_end_loc=locs_desc[end_loc]
                     if print_all
@@ -244,7 +254,7 @@ function print_traveling_arcs(sol,ts,map1,vbs,tsnetwork,params,locs_id,locs_desc
                         end
                     end
                     if save
-                        open(file, "a") do io
+                        open(res_file, "a") do io
                             if length(I_used)>0
                                 println(io, "\t Time $t: $viz_start_loc --> $viz_end_loc, with cust $I_used")
                             else
@@ -253,26 +263,35 @@ function print_traveling_arcs(sol,ts,map1,vbs,tsnetwork,params,locs_id,locs_desc
                         end
                     end
                     if !(end_loc in locs_id.sink) # We don't show travel to sink
-                    # plot line for physical arc between start_loc and end_loc on plot map1
-                        plot!(map1, [vbs[start_loc,:x], vbs[end_loc,:x]],[vbs[start_loc,:y], vbs[end_loc,:y]], color=colors[i], label="") 
+                        push!(arcs_plot_i,(start_loc,end_loc))
                     end
                 end
             end
         end
+        label_to_add=true
+        for (start_loc,end_loc) in arcs_plot_i
+            if label_to_add
+            # plot line for physical arc between start_loc and end_loc on plot map1
+                plot!(map2, [vbs[start_loc,:x], vbs[end_loc,:x]],[vbs[start_loc,:y], vbs[end_loc,:y]], color=colors[i], label="Bus $i",linewidth=2) 
+                label_to_add=false
+            else
+                plot!(map2, [vbs[start_loc,:x], vbs[end_loc,:x]],[vbs[start_loc,:y], vbs[end_loc,:y]], color=colors[i], label=nothing,linewidth=2)
+            end
+        end
     end
     if save
-        savefig(map1,resultfile*"_map.png")
+        savefig(map2,resultfolder*"map.png")
     end
-    return map1
+    return map2
 end
 
 #-----------------------------------------------------------------------------------#
 # to check the arc traveled by a specific cust after a specific time
-function arc_traveled(cust,time,A,nodedesc,arcdesc,x,P,K,arccost)
+function arc_traveled(cust,time,A,nodedesc,arcdesc,x,P,arccost)
     for a_ind in A
         a=arcdesc[a_ind]
         start_time=nodedesc[a[1]][2]
-        if start_time>time && sum(x[cust,a_ind,p,k] for p in P[cust],k in K)==1
+        if start_time>time && sum(x[cust,a_ind,p] for p in P[cust])==1
             start_loc=nodedesc[a[1]][1]
             end_loc=nodedesc[a[2]][1]
             println("travel from loc $start_loc to $end_loc at time $start_time with cost $(arccost[a_ind])")
@@ -330,7 +349,7 @@ function timespaceviz_arcs(drawingname,horizon, tstep, tsn, arclist, locs_id,loc
 	#Initiailize drawing
 	Drawing(x_size, y_size, drawingname)
 	origin()
-	background("white")
+	#background("white")
 
 	#Draw arcs
 	for i in arcinfo
@@ -406,7 +425,7 @@ function get_bus_routes(z,tsnetwork,params,locs_id)
     return routes 
 end
 
-function timespaceviz_bus(drawingname,horizon, tstep, tsn, params,z,locs_id; x_size=1200, y_size=700)
+function timespaceviz_bus(drawingname,horizon, tstep, tsn, params,z,locs_id,locs_desc; x_size=1200, y_size=700)
 
 	#Find coordinates for each time-space node
 	nodelist = []
@@ -428,11 +447,11 @@ function timespaceviz_bus(drawingname,horizon, tstep, tsn, params,z,locs_id; x_s
 	nodePoints = Point.(nodelist)
 
 	#---------------------------------------------------------------------------------------#
-    colors= ["lime","magenta","mediumblue","mintcream","mistyrose","moccasin","navy","olive","chocolate4","coral","cornflowerblue","cornsilk4","cyan","darkblue","darkcyan","darkgoldenrod", "deeppink","deepskyblue","dodgerblue","firebrick","forestgreen","fuchsia","gainsboro","goldenrod","gray"]
-
+    colors=["blue","orange","cyan","purple","lime","teal","brown","green","indigo","pink","olive","maroon","navy","darkcyan","darkmagenta","darkorange","forestgreen","mediumblue","mintcream","mistyrose","moccasin","navy","chocolate4","coral","cornflowerblue","cornsilk4","cyan","darkblue","darkcyan","darkgoldenrod", "deeppink","deepskyblue","dodgerblue","firebrick","fuchsia","gainsboro","goldenrod","gray"]
+    
 	#Arcs for visualization
 	#Duplicate for multiple input arc lists with different colors/thickness/dash if you're trying to show m
-	arcs_dict=get_bus_routes(z,tsnetwork,params,locs_id)
+	arcs_dict=get_bus_routes(z,tsn,params,locs_id)
     arcinfo = []
     for i in 1:length(locs_id.depots)
         arclist = arcs_dict[locs_id.depots[i]]
@@ -455,7 +474,7 @@ function timespaceviz_bus(drawingname,horizon, tstep, tsn, params,z,locs_id; x_s
 	#Initiailize drawing
 	Drawing(x_size, y_size, drawingname)
 	origin()
-	background("white")
+	#background("white")
 
 	#Draw arcs
 	for i in arcinfo
@@ -513,12 +532,12 @@ end
 
 function write_result(resultfile,sol,tsnetwork,params,abbrev,wo,locs_id,print_all)
     q, t, I, K=abbrev;
-    xi,x,z,time,objs=sol.xi,sol.x,sol.z,sol.time,sol.objs
+    xi,xt,z,time,objs=sol.xi,sol.x,sol.z,sol.time,sol.objs
 
-    res_file=open(resultfile*"_res.txt","w")
+    res_file=open(resultfile,"w")
     write(res_file, "\n ------ Objective values ------ \n")
     writedlm(res_file, objs)
-    cust_KPIs_details,cust_KPIS,veh_KPIS=display_KPIs(xi,x,z,tsnetwork,params,I,q,wo,t,locs_id,print_all);
+    cust_KPIs_details,cust_KPIS,veh_KPIS=display_KPIs(xi,xt,z,tsnetwork,params,I,q,wo,t,locs_id,print_all);
     write(res_file, "\n ------ Customer KPIs ------ \n")
     writedlm(res_file, cust_KPIS)
     write(res_file, "\n ------ Vehicle KPIs ------ \n")

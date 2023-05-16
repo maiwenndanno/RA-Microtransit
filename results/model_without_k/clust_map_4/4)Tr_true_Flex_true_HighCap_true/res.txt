@@ -1,0 +1,107 @@
+
+ ------ Objective values ------ 
+Cust driving	30064.5
+Wait	2161.61
+Veh_nb	2.0
+Unmet	0.0
+Veh driving	6032.25
+Tr	2.0
+Walk	15163.2
+
+ ------ Customer KPIs ------ 
+Mean travel time	3006.45
+Mean walking time	1516.32
+Mean #transfers	0.2
+Mean efficiency	0.95
+Mean waiting time	216.16
+
+ ------ Vehicle KPIs ------ 
+Mean distance	1206.0
+Mean empty time	0.0
+# Veh used	2.0
+Mean service time	6032.0
+Mean capacity	2.111
+
+ ------ Solving time ------ 
+0.800503791
+
+ ------ Customer KPIs details ------ 
+ Customer 1
+transfer	0
+travel	2500.0
+waiting	207.5
+walking	1788.0 ,incl 1292.5 to pick-up loc
+efficiency	0.95
+itinerary	from 7 to 5
+
+ Customer 2
+transfer	0
+travel	2500.0
+waiting	161.46
+walking	2011.0 ,incl 1338.54 to pick-up loc
+efficiency	0.97
+itinerary	from 7 to 5
+
+ Customer 3
+transfer	0
+travel	2500.0
+waiting	75.28
+walking	2279.0 ,incl 1424.72 to pick-up loc
+efficiency	0.98
+itinerary	from 7 to 5
+
+ Customer 4
+transfer	1
+travel	4207.0
+waiting	305.67
+walking	411.0 ,incl 194.33 to pick-up loc
+efficiency	1.0
+itinerary	from 2 to 6
+
+ Customer 5
+transfer	1
+travel	4207.0
+waiting	423.16
+walking	414.0 ,incl 76.84 to pick-up loc
+efficiency	0.97
+itinerary	from 2 to 6
+
+ Customer 6
+transfer	0
+travel	4207.0
+waiting	344.0
+walking	735.0 ,incl 156.0 to pick-up loc
+efficiency	0.99
+itinerary	from 1 to 6
+
+ Customer 7
+transfer	0
+travel	4207.0
+waiting	234.3
+walking	1082.0 ,incl 265.7 to pick-up loc
+efficiency	1.01
+itinerary	from 1 to 6
+
+ Customer 8
+transfer	0
+travel	3500.0
+waiting	48.84
+walking	2509.0 ,incl 1451.16 to pick-up loc
+efficiency	0.98
+itinerary	from 7 to 6
+
+ Customer 9
+transfer	0
+travel	1118.0
+waiting	138.63
+walking	1949.0 ,incl 1361.37 to pick-up loc
+efficiency	0.81
+itinerary	from 3 to 4
+
+ Customer 10
+transfer	0
+travel	1118.0
+waiting	222.75
+walking	1986.0 ,incl 1277.25 to pick-up loc
+efficiency	0.85
+itinerary	from 3 to 4

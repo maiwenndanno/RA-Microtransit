@@ -1,0 +1,2 @@
+Traveling arcs used:
+-- Bus 1: 

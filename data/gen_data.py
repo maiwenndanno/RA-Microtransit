@@ -40,26 +40,26 @@ def gen_loc_uniform_10(loc_file_path):
 # ------------------ VBS CASE 2 : 20 VBS incl 4 HUBS + 1 DEPOT
 def gen_loc_uniform_20(loc_file_path):
     # hubs at index 6,7,16,17
-    locations = pd.DataFrame([[1,1,1],
-                              [2,1,5],
-                              [3,3,3],
-                              [4,3,7],
-                              [5,5,1],
-                              [6,5,5],
-                              [7,7,3],
-                              [8,7,7], 
-                              [9,9,1],
-                              [10,9,5],
-                              [11,1,3], 
-                              [12,1,7],
-                              [13,3,1],
-                              [14,3,5],
-                              [15,5,3],
-                              [16,5,7],
-                              [17,7,1],
-                              [18,7,5], 
-                              [19,9,3],
-                              [20,9,7]], columns = ['id', 'x', 'y'])
+    locations = pd.DataFrame([[1,2,1],
+                              [2,2,5],
+                              [3,6,3],
+                              [4,6,7],
+                              [5,10,1],
+                              [6,10,5],
+                              [7,14,3],
+                              [8,14,7], 
+                              [9,18,1],
+                              [10,18,5],
+                              [11,2,3], 
+                              [12,2,7],
+                              [13,6,1],
+                              [14,6,5],
+                              [15,10,3],
+                              [16,10,7],
+                              [17,14,1],
+                              [18,14,5], 
+                              [19,18,3],
+                              [20,18,7]], columns = ['id', 'x', 'y'])
     # Add sink node at the end (index 999)
     #locations=pd.concat([locations,pd.DataFrame([["sink",0,0]], columns = ['id', 'x', 'y'])], ignore_index = True)
     
@@ -70,9 +70,7 @@ def gen_loc_uniform_30_BIG(loc_file_path):
     vbs_list = []
     for i in range(1,11,1): # from 1 to 10
         for j in range(1,4): # from 1 to 3
-            vbs_list.append([3*(i-1)+j,i*100,10*(j-1)+10])
-    #hubs at index 5, 14, 26
-    #print(vbs_list)
+            vbs_list.append([3*(i-1)+j,i*100,100*(j-1)])
     locations = pd.DataFrame(vbs_list, columns = ['id', 'x', 'y'])
     # Add sink node at the end (index 999)
     #locations=pd.concat([locations,pd.DataFrame([["sink",0,0]], columns = ['id', 'x', 'y'])], ignore_index = True)
@@ -128,18 +126,18 @@ def gen_cust_uniform_10(cust_file_path):
     # 5 customers whose origin is uniformely distributed between (0,0) and (2,8) and whose destination is uniformely distributed between (8,0) and (10,8)
     for i in range(5):
         x_o=i/4*2
-        y_o=i/4*8
-        x_d=i/4*2+8
-        y_d=i/4*8
+        y_o=i/4*8+0.5
+        x_d=i/4*2+15
+        y_d=i/4*8-0.5
         time=i/4*20 # between 0 and 5 minutes
         load=1
         cust=pd.concat([cust,pd.DataFrame([[str(i+1),x_o,y_o, x_d, y_d, time, load]], columns=['cust_id','x_o','y_o','x_d', 'y_d','depart_time','load'])], ignore_index = True)
     # 5 customers whose origin is uniformely distributed between (4,0) and (6,8) and whose destination is uniformely distributed between (9,0) and (10,8)
     for i in range(5):
         x_o=i/4*2+4
-        y_o=i/4*8
-        x_d=i/4*1+9
-        y_d=(4-i)/4*8
+        y_o=i/4*8-0.5
+        x_d=i/4*1+18
+        y_d=(4-i)/4*8+0.5
         time=i/4*20 # between 0 and 5 minutes
         load=1
         cust=pd.concat([cust,pd.DataFrame([[str(i+6),x_o,y_o, x_d, y_d, time, load]], columns=['cust_id','x_o','y_o','x_d', 'y_d','depart_time','load'])], ignore_index = True)
@@ -154,10 +152,10 @@ def gen_cust_clust_10(cust_file_path):
         x_o=i/4*2+1
         y_o=i/4*2
         if i <=2:
-            x_d=9
+            x_d=15
             y_d=0
         else:
-            x_d=9
+            x_d=16
             y_d=8
         time=i/4*20 # between 0 and 5 minutes
         load=1
@@ -167,10 +165,10 @@ def gen_cust_clust_10(cust_file_path):
         x_o=i/4*2+1
         y_o=i/4*2+6
         if i <=1:
-            x_d=9
+            x_d=18
             y_d=0
         else:
-            x_d=9
+            x_d=17
             y_d=8
         time=i/4*20 # between 0 and 5 minutes
         load=1
@@ -183,44 +181,44 @@ def gen_cust_clust_20_BIG(cust_file_path):
     # Cluster 1 : 5 customers whose origin is uniformely distributed between (95,25) and (105,35) and 3 of them go around (700,20) and 2 of them go around (900,30)
     for i in range(5):
         x_o=i/4*10+95
-        y_o=i/4*4 +24
+        y_o=i/4*80 +124
         if i <=2:
             x_d=695+5*i
-            y_d=21
+            y_d=141+15*i
         else:
             x_d=890+3*i
-            y_d=18 + i
+            y_d=88 + 10*i
         time=0 
         load=1
         cust=pd.concat([cust,pd.DataFrame([[str(i+1),x_o,y_o, x_d, y_d, time, load]], columns=['cust_id','x_o','y_o','x_d', 'y_d','depart_time','load'])], ignore_index = True)
     # Cluster 2 : 5 customers whose origin is uniformely distributed between (95,5) and (105,10) and 3 of them go around (900,20) and 2 of them go around (300,0)
     for i in range(5):
         x_o=i/4*10+95
-        y_o=i/4*4 + 12
+        y_o=i/4*40 + 12
         if i <=2:
             x_d=895+5*i
-            y_d=18
+            y_d=148 +20*i
         else:
-            x_d=295+2*i
-            y_d=9+i
+            x_d=395+2*i
+            y_d=19+10*i
         time=0 
         load=1
         cust=pd.concat([cust,pd.DataFrame([[str(i+6),x_o,y_o, x_d, y_d, time, load]], columns=['cust_id','x_o','y_o','x_d', 'y_d','depart_time','load'])], ignore_index = True)
     # Cluster 3 : 5 customers whose origin is uniformely distributed between (95,10) and (105,15) and all of them go around (600,0) 
     for i in range(5):
         x_o=i/4*10+95
-        y_o=i/4*4 + 10
+        y_o=i/4*50 + 10
         x_d=595+2*i
-        y_d=9 + i
+        y_d=80 + 15*i
         time=250*dr_speed
         load=1
         cust=pd.concat([cust,pd.DataFrame([[str(i+11),x_o,y_o, x_d, y_d, time, load]], columns=['cust_id','x_o','y_o','x_d', 'y_d','depart_time','load'])], ignore_index = True)
     # Cluster 5 : 5 customers whose origin is uniformely distributed between (495,20) and (505,25) and all of them go around (700,20) 
     for i in range(5):
         x_o=i/4*10+495
-        y_o=i/4*4 + 19
+        y_o=i/4*42 + 19
         x_d=695+2*i
-        y_d=18+ i
+        y_d=65+ 20*i
         time=300*dr_speed
         load=1
         cust=pd.concat([cust,pd.DataFrame([[str(i+16),x_o,y_o, x_d, y_d, time, load]], columns=['cust_id','x_o','y_o','x_d', 'y_d','depart_time','load'])], ignore_index = True)

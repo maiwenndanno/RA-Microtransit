@@ -95,6 +95,21 @@ function update_hubs_id(hubs_id, vbs_id)
     return new_hubs_id
 end
 
+function update_depots_id(depots_id, vbs_id)
+    # update depots id list with new vbs id (1:nb_locs)
+    new_depots_id=[]
+    for d in depots_id
+        if d in vbs_id
+            for i in eachindex(vbs_id)
+                if vbs_id[i]==d
+                    push!(new_depots_id,i)
+                end
+            end
+        end
+    end
+    return new_depots_id
+end
+
 function expand_locs(locs,vbs_id,depot_locs,hubs_id,park_slots)
     # Expand locs and create the different locs_id parameters & locs_desc dictionnary
     # all: indices of all the locs (including hubs, depots, sink)
@@ -150,6 +165,7 @@ function expand_locs(locs,vbs_id,depot_locs,hubs_id,park_slots)
     
     # Add depot nodes, one for each depot
     depots_id=[]
+    depot_locs=update_depots_id(depot_locs, vbs_id)
     for i in eachindex(depot_locs)
         id=size(locs)[1]+1
         locs=vcat(locs,DataFrame(id = id,x=locs[locs.id .==depot_locs[i],:x] , y = locs[locs.id .==depot_locs[i],:y]))
@@ -163,23 +179,22 @@ function expand_locs(locs,vbs_id,depot_locs,hubs_id,park_slots)
     locs_desc[sink_id]="Sink"
 
     # Different locs id
-    locs_id= (all=locs.id, hubs=hubs_id, all_hubs=full_hubs_id, all_vbs=full_vbs_id, classic_vbs=classic_vbs_id, depots=depots_id, sink=sink_id, similar_hubs)
+    locs_id= (all=locs.id, hubs=hubs_id, new_depot_locs=depot_locs, all_hubs=full_hubs_id, all_vbs=full_vbs_id, classic_vbs=classic_vbs_id, depots=depots_id, sink=sink_id, similar_hubs)
     return locs, locs_id, locs_desc
 end
     
 
-function create_network(map_inputs, model_inputs,benchmark,park_slots)
+function create_network(map_inputs, model_inputs,benchmark)
     # map_inputs: datafolder,hubs_id,vbs_id,nb_locs,nb_cust,depot_locs,horizon,tstep
     # model_inputs: G,Gtype,Wk,Q
-
-    map_title,hubs_id,vbs_id,nb_locs,cust_id,nb_cust,depot_locs,horizon,tstep = map_inputs
-    G,Gtype,Wk,Q = model_inputs
+    before = time()
+    map_title,hubs_id,vbs_id,nb_locs,cust_id,nb_cust,depot_locs,horizon,tstep,park_slots = map_inputs
     park_slots=min(park_slots,length(depot_locs)) # If park_slots > nb_vehs, park_slots=nb_vehs
 
     datafolder="data/"*map_title*"/";
     cust, locs = load_data(datafolder,vbs_id,nb_locs,cust_id,nb_cust)
     locs, locs_id, locs_desc=expand_locs(locs,vbs_id,depot_locs,hubs_id,park_slots); # Update locs with depot, hubs and sink
-    map = create_map(locs, cust, locs_id)
+    map1 = create_map(locs, cust, locs_id)
 
     arcs= gen_arcs(locs, locs_id)
     wo= gen_wo(cust, locs, locs_id)
@@ -192,10 +207,12 @@ function create_network(map_inputs, model_inputs,benchmark,park_slots)
     K = 1:length(depot_locs); # vehicles set
     abbrev=(q,t,I,K)
 
-    tsnetwork = createfullnetwork(locs, arcs, horizon, tstep)
+    tsnetwork = createfullnetwork(locs, arcs, locs_id, horizon, tstep)
     params = create_params(tsnetwork,locs_id, model_inputs, wo, wd,I,t,tstep,horizon,benchmark)
+    after=time()
+    pre_time=after-before
     
     data=(cust=cust,locs=locs,arcs=arcs,wo=wo,wd=wd,locs_id=locs_id,locs_desc=locs_desc)
-    return data, map1, tsnetwork, params, abbrev
+    return data, map1, tsnetwork, params, abbrev, pre_time
 end
     

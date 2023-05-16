@@ -2,15 +2,14 @@ include("shortestpath.jl")
 
 function create_params(tsnetwork,locs_id, model_inputs, wo, wd,I,t,tstep,horizon,benchmark)
     G,Gtype,Wk,Q=model_inputs
-    physicalarcs,shortest_time=tsnetwork.physicalarcs,tsnetwork.shortest_time
     vo, vd = create_vo_vd(wo, wd, Wk, I,benchmark);
-    gamma = create_gamma(I,vo,vd,wo,wd,shortest_time,horizon);
+    gamma = create_gamma(I,vo,vd,wo,wd,tsnetwork.shortest_time,horizon);
     N, N_depot, N_star,N_except_sink = create_Ns(tsnetwork.nodeid, tsnetwork.nodedesc, locs_id);
-    A, A_tilde_depot,Ai, deadlines = create_As(tsnetwork, physicalarcs, locs_id, N_depot, shortest_time, gamma, I, vo, vd, wo,wd, t, G, Gtype,tstep,horizon)
+    A, A_tilde_depot,Ai, deadlines = create_As(tsnetwork, locs_id, N_depot, gamma, I, vo, vd, wo,wd, t, G, Gtype,tstep,horizon)
     Ai_plus,Ai_minus,Ai_minus_tilde=create_Aplus_minus_i(tsnetwork,I,Ai,N);
     Ia=create_Ia(I,A,Ai);
     P,P_T = create_paths(vo,vd,I,locs_id,wo,wd,benchmark);
-    O, D, H, H_times = create_OHD_sets(N,I,P,t,gamma,tsnetwork.nodedesc,tstep,wo, wd,deadlines,shortest_time, horizon);
+    O, D, H, H_times = create_OHD_sets(N,I,P,t,gamma,tsnetwork.nodedesc,tstep,wo, wd,deadlines,tsnetwork.shortest_time, horizon);
     Ai_except_H=create_Ai_except_H(Ai,I,P,tsnetwork);
     N_vo, N_vd, N_except_vo_vd_H=create_N_vo_vd_H(N,vo,vd,I,P, H,tsnetwork.nodedesc);
     return (vo=vo, vd=vd, P=P, H=H, H_times=H_times, O=O, D=D, deadlines=deadlines,
@@ -78,7 +77,7 @@ function create_Aplus_minus_i(tsn,I,Ai,N)
 end
 #-----------------------------------------------------------------------------------#
 
-function create_As(tsn, physicalarcs, locs_id, N_depot, shortest_time, gamma, I, vo, vd, wo, wd, t, G, Gtype,tstep,horizon)
+function create_As(tsn, locs_id, N_depot, gamma, I, vo, vd, wo, wd, t, G, Gtype,tstep,horizon)
 
     A=collect(values(tsn.arcid))
     depots=collect(keys(N_depot))
@@ -95,7 +94,7 @@ function create_As(tsn, physicalarcs, locs_id, N_depot, shortest_time, gamma, I,
     end
 
     # Reduce the number of arcs for each customer with heuristic
-    Ai,deadlines=reduce_arcs(tsn, physicalarcs, locs_id, G, Gtype, vo, vd, wo, wd, t,shortest_time, gamma,I,tstep,horizon)
+    Ai,deadlines=reduce_arcs(tsn, locs_id, G, Gtype, vo, vd, wo, wd, t, gamma,I,tstep,horizon)
     return A,A_tilde_depot,Ai, deadlines
 end
 
@@ -113,9 +112,12 @@ function create_Ia(I,A,Ai)
     return Ia
 end
 #---------------------------------------------------------------------------------------#
-function reduce_arcs(tsn, physicalarcs, locs_id, G, Gtype, vo, vd, wo,wd, t, shortest_time,gamma,I,tstep,horizon)
+function reduce_arcs(tsn, locs_id, G, Gtype, vo, vd, wo,wd, t,gamma,I,tstep,horizon)
     Ai=Dict()
     notAi=Dict() # = A minus A[i]
+
+    shortest_time=tsn.shortest_time
+    physicalarcs=tsn.physicalarcs
 
     deadlines=Dict()
     for i in I
@@ -167,22 +169,22 @@ end
 
 #-----------------------------------------------------------------------------------#
 
-function create_vo_vd(wo, wd, Wk, I,benchmarki)
+function create_vo_vd(wo, wd, Wk, I,benchmark)
 
     vo = Dict() # dictionnaire of pick-up locations indices
     vd = Dict() # dictionnaire of drop-off locations indices
     # select the closest pick-up and drop-off locations for each customer
     for i in I
-        if benchmark
-            vo[i]=argmin(wo[i,:])
-            vd[i]=argmin(wd[i,:])
-        else
+        if benchmark["Flexible"]
             # find all the locations that are within walking distance of the customer origin
             vo[i]=findall(x->x<=Wk, wo[i,:])
             #deleteat!(vo[i], findall(x->x==depot_loc, vo[i]))
             # find all the locations that are within walking distance of the customer destination
             vd[i]=findall(x->x<=Wk, wd[i,:])
             #deleteat!(vd[i], findall(x->x==depot_loc, vd[i]))
+        else 
+            vo[i]=argmin(wo[i,:])
+            vd[i]=argmin(wd[i,:])
         end
     end
     return vo, vd
@@ -203,9 +205,7 @@ function create_paths(vo,vd,I,locs_id,wo,wd,benchmark)
                 if o!=d
                     direct_path=Dict("o"=>o,"d"=>d,"transfer"=>0,"walking"=>round(wo[i,o]+wd[i,d],digits=2),"wo"=> round(wo[i,o],digits=2),"wd"=> round(wd[i,d],digits=2))
                     push!(P[i], direct_path)
-                    if benchmark
-                        continue # No indirect paths in benchmark
-                    else
+                    if benchmark["Transfer"]
                         for h in hubs_ind
                             if !(d in locs_id.similar_hubs[h]) # If h == d, no transfer possible
                                 transfer_path=Dict("o"=>o,"d"=>d,"h"=>locs_id.similar_hubs[h],"transfer"=>1,"walking"=> round(wo[i,o]+wd[i,d],digits=2), "wo"=> round(wo[i,o],digits=2),"wd"=> round(wd[i,d],digits=2))

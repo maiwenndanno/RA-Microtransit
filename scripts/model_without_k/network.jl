@@ -84,7 +84,7 @@ end
 #-----------------------------------------------------------------------------------#
 
 #Build the full time-space network
-function createfullnetwork(locs, arcs, horizon, tstep)
+function createfullnetwork(locs, arcs, locs_id, horizon, tstep)
 
 	#Build network
 	#loccoords = hcat(locs[:,2], locs[:,3])

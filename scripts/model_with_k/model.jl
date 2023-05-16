@@ -69,9 +69,9 @@ function network_model(Q,abbrev,wo,tsnetwork,params,coefficients,output=1)
     println("Objective value: ", objective_value(model))
     objs=Dict("Walk" => round(value.(Walk),digits=2),
         "Wait" => round(value.(Wait),digits=2),
-        "Traveling" => round(value.(Traveling),digits=2),
+        "Cust driving" => round(value.(Traveling),digits=2),
         "Tr" => round(value.(Tr),digits=2),
-        "Veh" => round(value.(Veh),digits=2),
+        "Veh driving" => round(value.(Veh),digits=2),
         "Veh_nb" => round(value.(Veh_nb),digits=2),
         "Unmet" => round(value.(Unmet),digits=2))
     

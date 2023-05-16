@@ -1,0 +1,9 @@
+
+ ------ Objective values ------ 
+Cust driving	426.76
+Wait	67.49
+Veh_nb	2.0
+Unmet	0.0
+Veh driving	170.59
+Tr	0.0
+Walk	244.64

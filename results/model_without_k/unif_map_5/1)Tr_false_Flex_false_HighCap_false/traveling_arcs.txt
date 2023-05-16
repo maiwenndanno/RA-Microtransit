@@ -1,0 +1,34 @@
+Traveling arcs used:
+-- Bus 1: 
+	 Time 40: Vbs 1 (Depot) --> Vbs 1
+	 Time 40: Vbs 1 --> Vbs 7 (Hub), with cust [4]
+	 Time 60: Vbs 7 (Hub) --> Vbs 5, with cust [4]
+	 Time 120: Vbs 5 --> Vbs 1
+	 Time 200: Vbs 1 --> Vbs 10, with cust [5]
+	 Time 290: Vbs 10 --> Sink
+-- Bus 2: 
+	 Time 30: Vbs 2 (Depot) --> Vbs 2 (Hub)
+	 Time 30: Vbs 2 (Hub) --> Vbs 5, with cust [8]
+	 Time 100: Vbs 5 --> Vbs 7 (Hub)
+	 Time 160: Vbs 7 (Hub) --> Vbs 4, with cust [10]
+	 Time 230: Vbs 4 --> Sink
+-- Bus 3: 
+	 Time 30: Vbs 6 (Depot) --> Vbs 6
+	 Time 30: Vbs 6 --> Vbs 2 (Hub), with cust [2]
+	 Time 50: Vbs 2 (Hub) --> Vbs 3, with cust [2]
+	 Time 90: Vbs 3 --> Vbs 2 (Hub)
+	 Time 130: Vbs 2 (Hub) --> Vbs 10, with cust [6]
+	 Time 200: Vbs 10 --> Sink
+-- Bus 4: 
+	 Time 20: Vbs 6 (Depot) --> Vbs 1
+	 Time 30: Vbs 1 --> Vbs 3, with cust [3]
+	 Time 100: Vbs 3 --> Vbs 2 (Hub)
+	 Time 140: Vbs 2 (Hub) --> Vbs 6
+	 Time 160: Vbs 6 --> Vbs 4, with cust [1]
+	 Time 250: Vbs 4 --> Sink
+-- Bus 5: 
+	 Time 30: Vbs 7 (Depot) --> Vbs 7 (Hub)
+	 Time 30: Vbs 7 (Hub) --> Vbs 9, with cust [9]
+	 Time 100: Vbs 9 --> Vbs 2 (Hub)
+	 Time 160: Vbs 2 (Hub) --> Vbs 10, with cust [7]
+	 Time 230: Vbs 10 --> Sink

@@ -1,15 +1,15 @@
 include("shortestpath.jl")
 
-function create_params(tsnetwork,hubs_ind, model_inputs, nb_locs,depot_locs,wo, wd,I,t,tstep,horizon)
+function create_params(tsnetwork,hubs_ind, model_inputs, nb_locs,depot_locs,wo, wd,I,t,tstep,horizon,benchmark)
     G,Gtype,Wk,Q=model_inputs
     physicalarcs,shortest_time=tsnetwork.physicalarcs,tsnetwork.shortest_time
-    vo, vd = create_vo_vd(wo, wd, Wk, I);
+    vo, vd = create_vo_vd(wo, wd, Wk, I,benchmark);
     gamma = create_gamma(I,vo,vd,wo,wd,shortest_time,horizon);
     N, N_depot, N_star = create_Ns(tsnetwork.nodeid, tsnetwork.nodedesc, depot_locs, nb_locs);
     A, A_tilde_depot,Ai,notAi, deadlines = create_As(tsnetwork, physicalarcs, N_depot, shortest_time, gamma, I, nb_locs, vo, vd, wo,wd, t, G, Gtype,tstep,horizon)
     Ai_plus,Ai_minus=create_Aplus_minus_i(tsnetwork,I,Ai,N);
     Ia=create_Ia(I,A,Ai);
-    P,P_T = create_paths(vo,vd,I,hubs_ind,wo,wd);
+    P,P_T = create_paths(vo,vd,I,hubs_ind,wo,wd,benchmark);
     O, D, H = create_OHD_sets(N,I,P,t,gamma,tsnetwork.nodedesc,tstep,wo, wd,deadlines,shortest_time);
     N_vo, N_vd, N_except_vo_vd_H=create_N_vo_vd_H(N,vo,vd,I,P, H,tsnetwork.nodedesc);
     return (vo=vo, vd=vd, P=P, H=H, O=O, D=D, deadlines=deadlines,
@@ -160,17 +160,22 @@ end
 
 #-----------------------------------------------------------------------------------#
 
-function create_vo_vd(wo, wd, Wk, I)
+function create_vo_vd(wo, wd, Wk, I,benchmark)
 
     vo = Dict() # dictionnaire of pick-up locations indices
     vd = Dict() # dictionnaire of drop-off locations indices
     for i in I
-        # find all the locations that are within walking distance of the customer origin
-        vo[i]=findall(x->x<=Wk, wo[i,:])
-        #deleteat!(vo[i], findall(x->x==depot_loc, vo[i]))
-        # find all the locations that are within walking distance of the customer destination
-        vd[i]=findall(x->x<=Wk, wd[i,:])
-        #deleteat!(vd[i], findall(x->x==depot_loc, vd[i]))
+        if benchmark["Flexible"]
+            # find all the locations that are within walking distance of the customer origin
+            vo[i]=findall(x->x<=Wk, wo[i,:])
+            #deleteat!(vo[i], findall(x->x==depot_loc, vo[i]))
+            # find all the locations that are within walking distance of the customer destination
+            vd[i]=findall(x->x<=Wk, wd[i,:])
+            #deleteat!(vd[i], findall(x->x==depot_loc, vd[i]))
+        else 
+            vo[i]=argmin(wo[i,:])
+            vd[i]=argmin(wd[i,:])
+        end
     end
     return vo, vd
 
@@ -178,7 +183,7 @@ end
 
 #-----------------------------------------------------------------------------------#
 
-function create_paths(vo,vd,I,hubs_ind,wo,wd)
+function create_paths(vo,vd,I,hubs_ind,wo,wd,benchmark)
     P=Dict() # dictionnaire of paths of all customers
     P_T=Dict()  # dictionnaire of indirect paths of all customers 
     for i in I
@@ -189,10 +194,14 @@ function create_paths(vo,vd,I,hubs_ind,wo,wd)
                 if o!=d
                     direct_path=Dict("o"=>o,"d"=>d,"transfer"=>0,"walking"=>round(wo[i,o]+wd[i,d],digits=2)) 
                     push!(P[i], direct_path)
-                    for h in hubs_ind
-                        transfer_path=Dict("o"=>o,"d"=>d,"h"=>h,"transfer"=>1,"walking"=> round(wo[i,o]+wd[i,d],digits=2))
-                        push!(P[i], transfer_path)
-                        push!(P_T[i], transfer_path)
+                    if benchmark["Transfer"]
+                        for h in hubs_ind
+                            if d!=h
+                                transfer_path=Dict("o"=>o,"d"=>d,"h"=>h,"transfer"=>1,"walking"=> round(wo[i,o]+wd[i,d],digits=2))
+                                push!(P[i], transfer_path)
+                                push!(P_T[i], transfer_path)
+                            end
+                        end
                     end
                 end
             end

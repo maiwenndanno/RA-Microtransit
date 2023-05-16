@@ -1,12 +1,13 @@
 include("parameters.jl")
 
 function create_map(vbs, cust, hubs_ind, nb_locs)
-    map1 = Plots.plot()
+    map1 = Plots.plot(background_color=:transparent)
     classic_vbs=classic_vbs_id(vbs,nb_locs,hubs_ind)
-    colors= ["lightskyblue","lime","magenta","mediumblue","mintcream","mistyrose","moccasin","navy","olive","chocolate4","coral","cornflowerblue","cornsilk4","cyan","darkblue","darkcyan","darkgoldenrod", "deeppink","deepskyblue","dodgerblue","firebrick","forestgreen","fuchsia","gainsboro","goldenrod","gray"]
+    num_colors = size(cust)[1]
+    colors = [RGB(0.5,0.5,0.5) .+ t/2 .* (RGB(1,0,0) .- RGB(0.5,0.5,0.5)) for t in range(0, stop=1, length=num_colors)]
 
-    scatter!(vbs[hubs_ind,:x], vbs[hubs_ind,:y],label="hubs", color="red", markersize=4,legend=:outertopright)
-    scatter!(vbs[classic_vbs,:x], vbs[classic_vbs,:y],label="vbs", color="black", markersize=4,legend=:outertopright)
+    scatter!(vbs[hubs_ind,:x], vbs[hubs_ind,:y],label="hubs", color="red", markersize=5,legend=:outertopright)
+    scatter!(vbs[classic_vbs,:x], vbs[classic_vbs,:y],label="vbs", color="black", markersize=5,legend=:outertopright)
     
     for i in 1:nb_locs
         annotate!(
@@ -137,7 +138,7 @@ function print_veh_KPIs(x,z,params,tsnetwork,K,q,print_all)
 
     distances=[]
     service=[]
-    carrying=[]
+    empty=[]
     capacities=[]
     for k in K
         if sum(z[k,a] for a in params.A)>0 #vehicle used
@@ -151,7 +152,8 @@ function print_veh_KPIs(x,z,params,tsnetwork,K,q,print_all)
             push!(service,serv_time)
 
             carrying_time=sum(arccost[a] for a in A_carrying)
-            push!(carrying,carrying_time)
+            empty_time=serv_time-carrying_time
+            push!(empty,empty_time)
 
             capacity= mean(cap(q,a,params,k,x) for a in A_used)
             push!(capacities,capacity)
@@ -160,7 +162,7 @@ function print_veh_KPIs(x,z,params,tsnetwork,K,q,print_all)
     avg_distance=round(mean(distances))
     avg_capacity=round(mean(capacities),digits=3)
     avg_service=round(mean(service))
-    avg_carrying=round(mean(carrying))
+    avg_empty=round(mean(empty))
 
     if print_all
         println("\n Vehicle KPIs:")
@@ -175,24 +177,25 @@ function print_veh_KPIs(x,z,params,tsnetwork,K,q,print_all)
                     "Mean distance"=> avg_distance, 
                     "Mean capacity"=> avg_capacity, 
                     "Mean service time"=> avg_service, 
-                    "Mean carrying time"=> avg_carrying)
+                    "Mean empty time"=> avg_empty)
 end
 
 #-----------------------------------------------------------------------------------#
 
-function print_traveling_arcs(sol,ts,params,K,map1,vbs,tsnetwork,print_all,save,resultfile) # display from time ts
+function print_traveling_arcs(sol,ts,params,horizon,K,map1,vbs,tsnetwork,nb_locs,print_all,save,resultfile) # display from time ts
     if print_all
         println("Traveling arcs used:")
     end
     if save
-        file=resultfile*"_traveling_arcs.txt"
+        file=resultfile*"traveling_arcs.txt"
         open(file, "w") do io
             println(io, "Traveling arcs used:")
         end
     end
     z,x=sol.z,sol.x
     P,Ia=params.P,params.Ia
-    colors= ["lightsalmon4","lightskyblue","lime","magenta","mediumblue","mintcream","mistyrose","moccasin","navy","olive","chocolate4","coral","cornflowerblue","cornsilk4","cyan","darkblue","darkcyan","darkgoldenrod", "deeppink","deepskyblue","dodgerblue","firebrick","forestgreen","fuchsia","gainsboro","goldenrod","gray"]
+    map2=deepcopy(map1)
+    colors=[:blue,:magenta,:orange,:cyan,:purple,:lime,:teal,:brown,:green,:indigo,:pink,:olive,:maroon,:navy,:darkcyan,:darkmagenta,:darkorange,:forestgreen,"mediumblue","mintcream","mistyrose","moccasin","navy","chocolate4","coral","cornflowerblue","cornsilk4","cyan","darkblue","darkcyan","darkgoldenrod", "deeppink","deepskyblue","dodgerblue","firebrick","fuchsia","gainsboro","goldenrod","gray"]
     for k in K
         if print_all
             println("-- Bus $k: ")
@@ -229,16 +232,16 @@ function print_traveling_arcs(sol,ts,params,K,map1,vbs,tsnetwork,print_all,save,
                     end
                     if end_loc <=nb_locs # We don't show travel to sink
                     # plot line for physical arc between start_loc and end_loc on plot map1
-                        plot!(map1, [vbs[start_loc,:x], vbs[end_loc,:x]],[vbs[start_loc,:y], vbs[end_loc,:y]], color=colors[k], label="")
+                        plot!(map2, [vbs[start_loc,:x], vbs[end_loc,:x]],[vbs[start_loc,:y], vbs[end_loc,:y]], color=colors[k], label="")
                     end
                 end
             end
         end
     end
     if save
-        savefig(map1,resultfile*"_map.png")
+        savefig(map2,resultfile*"map.png")
     end
-    return map1
+    return map2
 end
 
 #-----------------------------------------------------------------------------------#
@@ -279,7 +282,7 @@ end
 
 using Luxor, Colors
 
-function timespaceviz_arcs(drawingname,horizon, tstep, tsn, arclist; x_size=1200, y_size=700)
+function timespaceviz_arcs(drawingname,horizon, tstep, tsn, arclist,x, params, K; x_size=1200, y_size=700)
 
 	#Find coordinates for each time-space node
 	nodelist = []
@@ -300,7 +303,13 @@ function timespaceviz_arcs(drawingname,horizon, tstep, tsn, arclist; x_size=1200
 	nodePoints = Point.(nodelist)
 
 	#---------------------------------------------------------------------------------------#
-
+    # To highlight in a different arcs the arcs traveled by the cust
+    #arclist2=[]
+    #for a in params.Ai[1]
+    #    if sum(x[1,a,p,k] for p in params.P[1],k in K) ==1
+    #        push!(arclist2,a)
+    #    end
+    #end
 	#Arcs for visualization
 	#Duplicate for multiple input arc lists with different colors/thickness/dash if you're trying to show m
 	arcinfo = []
@@ -309,6 +318,11 @@ function timespaceviz_arcs(drawingname,horizon, tstep, tsn, arclist; x_size=1200
 		endPoint = nodePoints[tsn.arcdesc[a][2]]
 		
 		#Set arc attributes
+        #if a in arclist2
+        #    arcColor = (255,0,0) #RGB tuple 
+        #else
+        #    arcColor = (0,0,255) #RGB tuple 
+        #end
 		arcColor = (0,0,255) #RGB tuple 
 		arcDash = "solid" #"solid", "dashed"			
 		arcThickness = 4 
@@ -322,7 +336,7 @@ function timespaceviz_arcs(drawingname,horizon, tstep, tsn, arclist; x_size=1200
 	#Initiailize drawing
 	Drawing(x_size, y_size, drawingname)
 	origin()
-	background("white")
+	#background("white")
 
 	#Draw arcs
 	for i in arcinfo
@@ -374,7 +388,7 @@ function timespaceviz_arcs(drawingname,horizon, tstep, tsn, arclist; x_size=1200
 
 end
 
-function timespaceviz_bus(drawingname,horizon, tstep, tsn, z; x_size=1200, y_size=700)
+function timespaceviz_bus(drawingname,horizon, tstep, tsn, params,z,K, nb_locs; x_size=1200, y_size=700)
     arcdict=Dict()
     for k in K
     # list of arcs traveled by vehicle k
@@ -400,8 +414,8 @@ function timespaceviz_bus(drawingname,horizon, tstep, tsn, z; x_size=1200, y_siz
 	nodePoints = Point.(nodelist)
 
 	#---------------------------------------------------------------------------------------#
-    colors= ["lightsalmon4","lightskyblue","lime","magenta","mediumblue","mintcream","mistyrose","moccasin","navy","olive","chocolate4","coral","cornflowerblue","cornsilk4","cyan","darkblue","darkcyan","darkgoldenrod", "deeppink","deepskyblue","dodgerblue","firebrick","forestgreen","fuchsia","gainsboro","goldenrod","gray"]
-
+    colors=["blue","magenta","orange","cyan","purple","lime","teal","brown","green","indigo","pink","olive","maroon","navy","darkcyan","darkmagenta","darkorange","forestgreen","mediumblue","mintcream","mistyrose","moccasin","navy","chocolate4","coral","cornflowerblue","cornsilk4","cyan","darkblue","darkcyan","darkgoldenrod", "deeppink","deepskyblue","dodgerblue","firebrick","fuchsia","gainsboro","goldenrod","gray"]
+    
 	#Arcs for visualization
 	#Duplicate for multiple input arc lists with different colors/thickness/dash if you're trying to show m
 	arcinfo = []
@@ -426,7 +440,7 @@ function timespaceviz_bus(drawingname,horizon, tstep, tsn, z; x_size=1200, y_siz
 	#Initiailize drawing
 	Drawing(x_size, y_size, drawingname)
 	origin()
-	background("white")
+	#background("white")
 
 	#Draw arcs
 	for i in arcinfo
@@ -485,7 +499,7 @@ function write_result(resultfile,sol,tsnetwork,params,abbrev,wo,print_all)
     q, t, I, K=abbrev;
     xi,x,z,time,objs=sol.xi,sol.x,sol.z,sol.time,sol.objs
 
-    res_file=open(resultfile*"_res.txt","w")
+    res_file=open(resultfile*"res.txt","w")
     write(res_file, "\n ------ Objective values ------ \n")
     writedlm(res_file, objs)
     cust_KPIs_details,cust_KPIS,veh_KPIS=display_KPIs(xi,x,z,tsnetwork,params,I,K,q,wo,t,print_all);

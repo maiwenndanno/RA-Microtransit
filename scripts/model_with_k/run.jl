@@ -62,31 +62,32 @@ function gen_wd(cust, locations)
     return walking_time_dest
 end
 
-function update_locs_ind(hubs_ind, vbs_ind,nb_locs)
+function update_locs_ind(locs_ind, vbs_ind)
     # update locs ind with vbs_ind list
-    new_hubs_ind=[]
-    for h in hubs_ind
+    new_locs_ind=[]
+    for h in locs_ind
         if h in vbs_ind
-            for i in 1:nb_locs
+            for i in eachindex(vbs_ind)
                 if vbs_ind[i]==h
-                    push!(new_hubs_ind,i)
+                    push!(new_locs_ind,i)
                 end
             end
         end
     end
-    return new_hubs_ind
+    return new_locs_ind
 end
 
-function create_network(map_inputs, model_inputs)
+function create_network(map_inputs, model_inputs,benchmark)
     # map_inputs: datafolder,hubs_ind,nb_locs,nb_cust,depot_locs,horizon,tstep
     # model_inputs: G,Gtype,Wk,Q
-
+    before=time()
     map_title,hubs_ind,vbs_ind,nb_locs,cust_ind,nb_cust,depot_locs,horizon,tstep = map_inputs
     G,Gtype,Wk,Q = model_inputs
 
-    datafolder="../../data/"*map_title*"/";
+    datafolder="data/"*map_title*"/";
     cust, vbs, arcs, wo, wd = load_data(datafolder,vbs_ind,nb_locs,cust_ind,nb_cust);
-    hubs_ind = update_locs_ind(hubs_ind, vbs_ind,nb_locs) #hubs_ind[hubs_ind .<= nb_locs]
+    hubs_ind = update_locs_ind(hubs_ind, vbs_ind) 
+    depot_locs = update_locs_ind(depot_locs, vbs_ind) 
     map1 = create_map(vbs, cust, hubs_ind,nb_locs)
     
     # Abbreviations for IO model
@@ -97,9 +98,10 @@ function create_network(map_inputs, model_inputs)
     abbrev=(q,t,I,K)
 
     tsnetwork = createfullnetwork(vbs, arcs, nb_locs, horizon, tstep)
-    params = create_params(tsnetwork,hubs_ind, model_inputs, nb_locs,depot_locs,wo, wd,I,t,tstep,horizon)
+    params = create_params(tsnetwork,hubs_ind, model_inputs, nb_locs,depot_locs,wo, wd,I,t,tstep,horizon,benchmark)
     data=(cust=cust,locs=vbs,arcs=arcs,wo=wo,wd=wd)
-    
-    return data, map1, tsnetwork, params, abbrev
+    after=time()
+    pre_time=after-before
+    return data, map1, tsnetwork, params, abbrev, pre_time, depot_locs
 end
     
