@@ -1,0 +1,9 @@
+
+ ------ Objective values ------ 
+Cust driving	0.0
+Wait	0.0
+Veh_nb	0.0
+Served	0.0
+Veh driving	0.0
+Tr	0.0
+Walk	0.0

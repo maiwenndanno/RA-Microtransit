@@ -1,0 +1,23 @@
+Traveling arcs used:
+-- Bus 1: 
+	 Time 10: from loc 9 to 4
+	 Time 80: from loc 4 to 8, with cust [8, 9, 10]
+	 Time 120: from loc 8 to 11
+-- Bus 2: 
+	 Time 0: from loc 4 to 1
+	 Time 40: from loc 1 to 7, with cust [1, 2, 3, 11, 12]
+	 Time 110: from loc 7 to 10, with cust [11, 12]
+	 Time 140: from loc 10 to 11
+-- Bus 3: 
+	 Time 0: from loc 7 to 3
+	 Time 40: from loc 3 to 6, with cust [13, 14, 15, 16]
+	 Time 70: from loc 6 to 10, with cust [13, 14, 15, 16, 18]
+	 Time 110: from loc 10 to 11
+-- Bus 4: 
+	 Time 30: from loc 9 to 6
+	 Time 80: from loc 6 to 7, with cust [17, 19, 20]
+	 Time 110: from loc 7 to 9, with cust [19, 20]
+-- Bus 5: 
+	 Time 40: from loc 2 to 6, with cust [4, 5, 6, 7]
+	 Time 80: from loc 6 to 7, with cust [4, 5, 6, 7]
+	 Time 110: from loc 7 to 11

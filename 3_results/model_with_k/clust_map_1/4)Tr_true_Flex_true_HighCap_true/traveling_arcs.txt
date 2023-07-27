@@ -1,0 +1,10 @@
+Traveling arcs used:
+-- Bus 1: 
+	 Time 500: from loc 1 to 3, with cust [4]
+	 Time 1500: from loc 3 to 7
+-- Bus 2: 
+	 Time 500: from loc 2 to 3, with cust [3]
+	 Time 1500: from loc 3 to 4, with cust [1, 2, 3, 4, 5]
+	 Time 3000: from loc 4 to 5, with cust [1, 2, 3, 4]
+	 Time 5000: from loc 5 to 6, with cust [3, 4]
+	 Time 6000: from loc 6 to 7

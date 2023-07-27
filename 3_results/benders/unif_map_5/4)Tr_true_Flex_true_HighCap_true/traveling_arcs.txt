@@ -1,0 +1,16 @@
+Traveling arcs used:
+-- Bus 1: 
+	 Time 24: Vbs 1 (Depot) --> Vbs 1
+	 Time 24: Vbs 1 --> Vbs 8
+	 Time 48: Vbs 8 --> Sink
+-- Bus 2: 
+	 Time 12: Vbs 2 (Depot) --> Vbs 2 (Hub)
+	 Time 12: Vbs 2 (Hub) --> Vbs 1
+	 Time 21: Vbs 1 --> Vbs 7 (Hub)
+	 Time 33: Vbs 7 (Hub) --> Vbs 3, with cust [9, 10]
+	 Time 51: Vbs 3 --> Sink
+-- Bus 3: 
+	 Time 12: Vbs 6 (Depot) --> Vbs 1
+	 Time 18: Vbs 1 --> Vbs 2 (Hub)
+	 Time 27: Vbs 2 (Hub) --> Vbs 8, with cust [6, 7, 8, 9]
+	 Time 45: Vbs 8 --> Sink

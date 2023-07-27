@@ -1,0 +1,188 @@
+
+ ------ Objective values ------ 
+Cust driving	381.27
+Wait	150.98
+Veh_nb	4.0
+Served	20.0
+Veh driving	84.42
+Tr	0.0
+Walk	229.21
+
+ ------ Customer KPIs ------ 
+Mean travel time	19.06
+Mean walking time	11.46
+Unmet demand	0.0
+Mean #transfers	0.0
+Mean efficiency	0.86
+Mean waiting time	7.55
+
+ ------ Vehicle KPIs ------ 
+Mean distance	42.0
+Mean empty time	0.0
+# Veh used	4.0
+Mean service time	84.0
+Mean capacity	1.786
+
+ ------ Solving time ------ 
+13.0544005
+
+ ------ Customer KPIs details ------ 
+ Customer 1
+transfer	0
+travel	16.0
+waiting	15.17
+walking	15.0 ,incl 11.83 to pick-up loc
+efficiency	0.72
+itinerary	from 12 to 7
+
+ Customer 2
+transfer	0
+travel	16.0
+waiting	13.68
+walking	17.0 ,incl 13.32 to pick-up loc
+efficiency	0.65
+itinerary	from 12 to 7
+
+ Customer 3
+transfer	0
+travel	19.0
+waiting	18.0
+walking	10.0 ,incl 3.0 to pick-up loc
+efficiency	0.66
+itinerary	from 2 to 8
+
+ Customer 4
+transfer	0
+travel	26.0
+waiting	20.48
+walking	2.0 ,incl 0.52 to pick-up loc
+efficiency	0.61
+itinerary	from 2 to 10
+
+ Customer 5
+transfer	0
+travel	26.0
+waiting	17.87
+walking	6.0 ,incl 3.13 to pick-up loc
+efficiency	0.66
+itinerary	from 2 to 10
+
+ Customer 6
+transfer	0
+travel	20.0
+waiting	6.0
+walking	9.0 ,incl 3.0 to pick-up loc
+efficiency	0.85
+itinerary	from 1 to 7
+
+ Customer 7
+transfer	0
+travel	20.0
+waiting	4.82
+walking	10.0 ,incl 4.18 to pick-up loc
+efficiency	0.88
+itinerary	from 1 to 7
+
+ Customer 8
+transfer	0
+travel	20.0
+waiting	3.47
+walking	12.0 ,incl 5.53 to pick-up loc
+efficiency	0.92
+itinerary	from 1 to 7
+
+ Customer 9
+transfer	0
+travel	10.0
+waiting	2.04
+walking	14.0 ,incl 6.96 to pick-up loc
+efficiency	1.01
+itinerary	from 1 to 4
+
+ Customer 10
+transfer	0
+travel	10.0
+waiting	0.58
+walking	15.0 ,incl 8.42 to pick-up loc
+efficiency	1.07
+itinerary	from 1 to 4
+
+ Customer 11
+transfer	0
+travel	16.0
+waiting	4.2
+walking	12.0 ,incl 10.8 to pick-up loc
+efficiency	0.93
+itinerary	from 12 to 7
+
+ Customer 12
+transfer	0
+travel	16.0
+waiting	4.44
+walking	15.0 ,incl 10.56 to pick-up loc
+efficiency	0.93
+itinerary	from 12 to 7
+
+ Customer 13
+transfer	0
+travel	16.0
+waiting	4.25
+walking	20.0 ,incl 10.75 to pick-up loc
+efficiency	0.84
+itinerary	from 12 to 7
+
+ Customer 14
+transfer	0
+travel	19.0
+waiting	0.3
+walking	10.0 ,incl 8.7 to pick-up loc
+efficiency	1.04
+itinerary	from 2 to 8
+
+ Customer 15
+transfer	0
+travel	19.0
+waiting	2.37
+walking	11.0 ,incl 6.63 to pick-up loc
+efficiency	0.98
+itinerary	from 2 to 8
+
+ Customer 16
+transfer	0
+travel	22.0
+waiting	10.0
+walking	9.0 ,incl 3.0 to pick-up loc
+efficiency	0.8
+itinerary	from 3 to 9
+
+ Customer 17
+transfer	0
+travel	22.0
+waiting	8.34
+walking	8.0 ,incl 4.66 to pick-up loc
+efficiency	0.82
+itinerary	from 3 to 9
+
+ Customer 18
+transfer	0
+travel	22.0
+waiting	6.67
+walking	8.0 ,incl 6.33 to pick-up loc
+efficiency	0.86
+itinerary	from 3 to 9
+
+ Customer 19
+transfer	0
+travel	22.0
+waiting	5.0
+walking	12.0 ,incl 8.0 to pick-up loc
+efficiency	0.91
+itinerary	from 3 to 9
+
+ Customer 20
+transfer	0
+travel	22.0
+waiting	3.33
+walking	16.0 ,incl 9.67 to pick-up loc
+efficiency	0.96
+itinerary	from 3 to 9

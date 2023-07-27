@@ -1,0 +1,147 @@
+
+ ------ Objective values ------ 
+Cust driving	47319.91
+Wait	7563.86
+Veh_nb	4.0
+Unmet	0.0
+Veh driving	12788.25
+Tr	2.0
+Walk	30539.31
+
+ ------ Customer KPIs ------ 
+Mean travel time	2366.0
+Mean walking time	1526.97
+Mean #transfers	0.1
+Mean efficiency	0.85
+Mean waiting time	378.19
+
+ ------ Vehicle KPIs ------ 
+Mean distance	639.0
+Mean empty time	0.0
+# Veh used	4.0
+Mean service time	3197.0
+Mean capacity	2.488
+
+ ------ Solving time ------ 
+824.671528667
+
+ ------ Customer KPIs details ------ 
+ Customer 1
+travel	2000.0
+waiting	207.5
+walking	2534.0
+efficiency	0.9
+
+ Customer 2
+travel	2000.0
+waiting	661.46
+walking	2714.0
+efficiency	0.78
+
+ Customer 3
+travel	2500.0
+waiting	75.28
+walking	2279.0
+efficiency	0.78
+
+ Customer 4
+travel	4207.0
+waiting	305.67
+walking	411.0
+efficiency	1.0
+
+ Customer 5
+travel	4207.0
+waiting	423.16
+walking	414.0
+efficiency	0.97
+
+ Customer 6
+travel	4081.0
+waiting	844.0
+walking	735.0
+efficiency	0.92
+
+ Customer 7
+travel	4081.0
+waiting	734.3
+walking	1082.0
+efficiency	0.87
+
+ Customer 8
+travel	3500.0
+waiting	48.84
+walking	2509.0
+efficiency	0.83
+
+ Customer 9
+travel	1581.0
+waiting	495.11
+walking	1117.0
+efficiency	0.81
+
+ Customer 10
+travel	1000.0
+waiting	222.75
+walking	1771.0
+efficiency	0.93
+
+ Customer 11
+travel	2581.0
+waiting	365.84
+walking	382.0
+efficiency	1.02
+
+ Customer 12
+travel	2581.0
+waiting	228.34
+walking	342.0
+efficiency	1.06
+
+ Customer 13
+travel	2000.0
+waiting	68.78
+walking	1552.0
+efficiency	0.98
+
+ Customer 14
+travel	2000.0
+waiting	171.17
+walking	1629.0
+efficiency	0.95
+
+ Customer 15
+travel	2000.0
+waiting	263.07
+walking	1718.0
+efficiency	0.93
+
+ Customer 16
+travel	1000.0
+waiting	401.87
+walking	2713.0
+efficiency	0.83
+
+ Customer 17
+travel	1500.0
+waiting	456.18
+walking	1627.0
+efficiency	0.61
+
+ Customer 18
+travel	1500.0
+waiting	500.57
+walking	1461.0
+efficiency	0.57
+
+ Customer 19
+travel	1500.0
+waiting	534.08
+walking	1666.0
+efficiency	0.57
+
+ Customer 20
+travel	1500.0
+waiting	555.89
+walking	1885.0
+efficiency	0.58

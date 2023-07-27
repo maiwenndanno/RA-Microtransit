@@ -1,0 +1,42 @@
+Traveling arcs used:
+-- Bus 1: 
+	 Time 3: Vbs 1 (Depot) --> Vbs 1
+	 Time 9: Vbs 1 --> Vbs 2 (Hub)
+	 Time 21: Vbs 2 (Hub) --> Vbs 3 (Hub)
+	 Time 27: Vbs 3 (Hub) --> Vbs 6
+	 Time 42: Vbs 6 --> Vbs 4
+	 Time 51: Vbs 4 --> Sink
+-- Bus 2: 
+	 Time 6: Vbs 2 (Depot) --> Vbs 2 (Hub)
+	 Time 6: Vbs 2 (Hub) --> Vbs 3 (Hub)
+	 Time 12: Vbs 3 (Hub) --> Vbs 2 (Hub)
+	 Time 18: Vbs 2 (Hub) --> Vbs 3 (Hub)
+	 Time 24: Vbs 3 (Hub) --> Vbs 5, with cust [3, 12, 13, 14]
+	 Time 36: Vbs 5 --> Vbs 8, with cust [3, 12, 13, 14, 18]
+	 Time 48: Vbs 8 --> Vbs 9, with cust [18]
+	 Time 57: Vbs 9 --> Sink
+-- Bus 3: 
+	 Time 0: Vbs 3 (Depot) --> Vbs 3 (Hub)
+	 Time 0: Vbs 3 (Hub) --> Vbs 2 (Hub)
+	 Time 9: Vbs 2 (Hub) --> Vbs 3 (Hub)
+	 Time 15: Vbs 3 (Hub) --> Vbs 2 (Hub)
+	 Time 21: Vbs 2 (Hub) --> Vbs 3 (Hub)
+	 Time 27: Vbs 3 (Hub) --> Vbs 7, with cust [2, 4, 5, 6, 7, 8, 11]
+	 Time 45: Vbs 7 --> Vbs 10, with cust [4, 5]
+	 Time 54: Vbs 10 --> Sink
+-- Bus 4: 
+	 Time 0: Vbs 4 (Depot) --> Vbs 3 (Hub)
+	 Time 9: Vbs 3 (Hub) --> Vbs 2 (Hub)
+	 Time 18: Vbs 2 (Hub) --> Vbs 3 (Hub)
+	 Time 24: Vbs 3 (Hub) --> Vbs 6, with cust [1, 3, 7, 8, 11, 12, 13, 14, 16, 17, 18, 19]
+	 Time 39: Vbs 6 --> Vbs 8, with cust [16, 17, 18, 19]
+	 Time 45: Vbs 8 --> Vbs 9, with cust [16, 17, 18, 19]
+	 Time 54: Vbs 9 --> Sink
+-- Bus 5: 
+	 Time 3: Vbs 3 (Depot) --> Vbs 2 (Hub)
+	 Time 12: Vbs 2 (Hub) --> Vbs 3 (Hub)
+	 Time 18: Vbs 3 (Hub) --> Vbs 1, with cust [1, 2, 4]
+	 Time 24: Vbs 1 --> Vbs 4, with cust [1, 2, 4, 6, 9, 10]
+	 Time 36: Vbs 4 --> Vbs 6, with cust [1, 2, 4, 6]
+	 Time 45: Vbs 6 --> Vbs 10, with cust [4]
+	 Time 57: Vbs 10 --> Sink
